@@ -1,0 +1,2859 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#4338ca" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="English Peers" />
+  <title>English Peers — Bepul Ingliz Tili Klubi</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #eef2f6;
+      color: #0f172a;
+      overflow-x: hidden;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    @keyframes fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fade-in {
+      animation: fadeSlideIn 0.22s ease-out forwards;
+    }
+  </style>
+  <!-- Telegram Mini App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>try { Telegram.WebApp.ready(); Telegram.WebApp.expand(); } catch (e) {}</script>
+  <script src="/api.js"></script>
+</head>
+<body class="min-h-screen flex justify-center">
+  <div id="app" class="w-full max-w-md min-h-screen bg-slate-50 shadow-2xl relative flex flex-col"></div>
+  <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[70] w-[92%] max-w-sm pointer-events-none flex flex-col gap-2"></div>
+  <div id="modal-root"></div>
+
+  <script>
+    // =========================================================================
+    // 1. XAVFSIZ KONFIGURATSIYA VA STORAGE KALITLARI
+    // =========================================================================
+    const STORAGE_KEYS = {
+      SECURITY: 'ep_html_security_v2',
+      PROFILE: 'ep_html_profile_v2',
+      CLUB: 'ep_html_club_v2',
+      REMINDERS: 'ep_html_reminders_v2'
+    };
+
+    const DEFAULT_SECURITY = {
+      masterKey: 'SUPER-PEERS-2026',
+      tempModKey: 'MOD-DARS-2026',
+      defaultDurationMinutes: 60,
+      keyVersion: 1,
+      accessLogs: [
+        {
+          id: 'log-init',
+          user: 'Tizim',
+          action: 'Ikki bosqichli kalit xavfsizligi va 6 darslik kurs faollashtirildi',
+          time: 'Faol'
+        }
+      ]
+    };
+
+    // =========================================================================
+    // 2. TEST SAVOLLARI GENERATORI (HAR BIR MAVZU UCHUN 30 TA, 6-MAVZUDA 50 TA)
+    // =========================================================================
+    function qItem(id, skill, question, options, correctIndex, explanation, advice) {
+      return { id, skill, question, options, correctIndex, explanation, advice };
+    }
+
+    function buildLesson1Questions() {
+      const base = [
+        qItem(1, 'Alifbo va harflar', 'Ingliz alifbosida jami nechta harf bor?', ['24 ta', '26 ta', '28 ta', '30 ta'], 1, 'Ingliz alifbosida 26 ta harf mavjud (5-6 ta unli va qolgani undosh harflar).', 'Alifbodagi barcha 26 ta harfning nomini va talaffuzini yod oling.'),
+        qItem(2, 'Tovushlar va unlilar', 'Ingliz tilida klassik unli harflar qaysilar?', ['A, E, I, O, U (va ba’zan Y)', 'A, O, U, I, E, Ə', 'B, C, D, F, G', 'A, E, I, O, W'], 0, 'Asosiy unli harflar A, E, I, O, U bo‘lib, Y ko‘pincha unli tovush beradi.', 'Unli harflarning qisqa va cho‘ziq tovushlarini farqlashni mashq qiling.'),
+        qItem(3, 'Harflar birikmalari', '"SH" harflar birikmasi odatda qanday tovush beradi?', ['/ʃ/ ("sh")', '/tʃ/ ("ch")', '/s/ ("s")', '/ʒ/ ("j")'], 0, '"SH" birikmasi o‘zbekcha "sh" ga yaqin /ʃ/ tovushini beradi: ship, she, shop.', '"SH" (/ʃ/) va "CH" (/tʃ/) birikmalarini adashtirmang.'),
+        qItem(4, 'Harflar birikmalari', '"CH" harflar birikmasi qaysi so‘zda /tʃ/ ("ch") o‘qiladi?', ['School', 'Chair', 'Chemistry', 'Character'], 1, '"Chair" so‘zida CH -> /tʃ/ o‘qiladi. (School, chemistry, characterda CH -> /k/ o‘qiladi).', '"CH" birikmasi ko‘pincha /tʃ/, lekin yunoncha so‘zlarda /k/ bo‘lishini esda tuting.'),
+        qItem(5, 'Harflar birikmalari', '"PH" harflar birikmasi qaysi tovushni beradi?', ['/f/ ("f")', '/p/ ("p")', '/h/ ("h")', '/v/ ("v")'], 0, '"PH" birikmasi phone, photo, elephant so‘zlarida /f/ tovushini beradi.', '"PH" ko‘rsangiz, darhol /f/ tovushini eslang.'),
+        qItem(6, 'Harflar birikmalari', '"TH" birikmasining ikki asosiy tovushi qaysilar?', ['/θ/ va /ð/', '/t/ va /d/', '/s/ va /z/', '/f/ va /v/'], 0, '"TH" jarangsiz /θ/ (think, three) va jarangli /ð/ (this, that, the) tovushlarini beradi.', 'Til uchini old tishlar orasiga qo‘yib /θ/ va /ð/ tovushlarini mashq qiling.'),
+        qItem(7, 'Raqamlar', '"15" soni inglizcha qanday yoziladi va aytiladi?', ['Fifty', 'Fifteen', 'Fiveteen', 'Fiftin'], 1, '15 — fifteen (/ˌfɪfˈtiːn/), 50 esa fifty (/ˈfɪfti/).', '"-teen" (13–19) oxirgi bo‘g‘inga urg‘u beradi, "-ty" (20–90) birinchi bo‘g‘inga.'),
+        qItem(8, 'Raqamlar', '"40" sonining to‘g‘ri imlosi qaysi?', ['Fourty', 'Forty', 'Fourteen', 'Forti'], 1, '40 har doim "forty" deb yoziladi ("u" harfi tushib qoladi!).', '"Four" (4) da "u" bor, lekin "forty" (40) da "u" yo‘q — imloga e’tibor bering.'),
+        qItem(9, 'Raqamlar', '"12" soni inglizcha qanday aytiladi?', ['Twelf', 'Twelve', 'Twentieth', 'Two'], 1, '12 — twelve (/twelv/).', '1 dan 20 gacha bo‘lgan sonlarni yozma va og‘zaki pishiqlang.'),
+        qItem(10, 'Raqamlar', '"100" raqami inglizcha qanday ifodalanadi?', ['One hundred', 'One thousand', 'Ten hundred', 'A hundredth'], 0, '100 — one hundred (yoki a hundred).', 'Yuzlik, minglik sonlarni tuzish qoidasini takrorlang.'),
+        qItem(11, 'Tarjima tartibi', 'Inglizcha darak gapda so‘z tartibi qanday bo‘ladi?', ['Fe’l + Ega + To‘ldiruvchi', 'Ega + Kesim (Fe’l) + To‘ldiruvchi + Hol (Joy, Vaqt)', 'Hol + Kesim + Ega', 'To‘ldiruvchi + Ega + Fe’l'], 1, 'Ingliz tilida gap tartibi qat’iy: Subject (Ega) + Verb (Fe’l) + Object (To‘ldiruvchi) + Place + Time.', 'O‘zbekcha gapni tarjima qilayotganda avval EGA va FE’LNI toping.'),
+        qItem(12, 'Tarjima tartibi', '"Men har kuni kitob o‘qiyman" gapining to‘g‘ri tartibi qaysi?', ['Every day I book read.', 'I read a book every day.', 'Read I a book every day.', 'I a book read every day.'], 1, 'Ega (I) + Fe’l (read) + To‘ldiruvchi (a book) + Vaqt holi (every day).', 'Vaqt holini (every day, tomorrow) odatda gap oxiriga qo‘ying.'),
+        qItem(13, 'Tarjima tartibi', 'Joy holi va vaqt holi bir gapda kelsa, qaysi tartibda turadi?', ['Vaqt holi, keyin Joy holi', 'Joy holi, keyin Vaqt holi (Place before Time)', 'Ikkalasi ham fe’ldan oldin', 'Tartib ahamiyatsiz'], 0, 'Ingliz tilida odatda JOY holi VAQT holidan oldin keladi: "at school" (joy) + "at 9 o’clock" (vaqt).', 'Eslab qoling: Joy (Place) -> Vaqt (Time).'),
+        qItem(14, 'Alifbo va harflar', '"Q" harfidan keyin odatda qaysi harf keladi?', ['U', 'A', 'O', 'E'], 0, 'Ingliz tilida "Q" harfi deyarli har doim "U" bilan birga keladi: queen, question, quick.', '"Q" harfini ko‘rsangiz, ko‘pincha yonida "U" turadi.'),
+        qItem(15, 'Tovushlar va unlilar', '"C" harfi "E, I, Y" harflaridan oldin qanday o‘qiladi?', ['/s/ ("s") kabi', '/k/ ("k") kabi', '/tʃ/ ("ch") kabi', 'O‘qilmaydi'], 0, 'C + e/i/y -> /s/ (city, cent, cycle); C + a/o/u -> /k/ (cat, cup, coat).', '"C" harfining yumshoq (/s/) va qattiq (/k/) o‘qilish qoidasini yodlang.'),
+        qItem(16, 'Tovushlar va unlilar', '"G" harfi "G + a/o/u" holatida qanday o‘qiladi?', ['/ɡ/ ("g") kabi', '/dʒ/ ("j") kabi', '/h/ ("h") kabi', 'O‘qilmaydi'], 0, '"Game, go, gun" so‘zlarida G -> /ɡ/ o‘qiladi.', 'G + a/o/u ko‘pincha /ɡ/ tovushini beradi.'),
+        qItem(17, 'Harflar birikmalari', '"CK" birikmasi qanday tovushni beradi?', ['/k/ ("k")', '/s/ ("s")', '/tʃ/ ("ch")', '/ʃ/ ("sh")'], 0, '"CK" birikmasi qisqa unlidan keyin /k/ tovushini beradi: black, sock, clock.', '"CK" birikmasi bitta aniq /k/ tovushi beradi.'),
+        qItem(18, 'Harflar birikmalari', '"NG" birikmasi so‘z oxirida qanday talaffuz qilinadi?', ['Burun orqali /ŋ/ (ming/rang oxiridagi tovushga yaqin)', 'Aniq /n/ + /ɡ/ + /ə/', '/dʒ/ ("j")', '/ʃ/ ("sh")'], 0, '"Sing, song, morning" so‘zlarida NG -> /ŋ/ burun tovushi chiqaradi.', '"Sing" so‘zida oxirida alohida "g" tovushini kuchaytirib yubormang.'),
+        qItem(19, 'Raqamlar', '"8" raqami inglizcha qanday yoziladi?', ['Eigth', 'Eight', 'Eigh', 'Aight'], 1, '8 — eight (/eɪt/).', '8 (eight) va 18 (eighteen) so‘zlarining imlosini mashq qiling.'),
+        qItem(20, 'Raqamlar', '"20" raqami inglizcha qanday yoziladi?', ['Twenty', 'Twinty', 'Twente', 'Twoenty'], 0, '20 — twenty (/ˈtwenti/).', 'O‘nlik sonlarni (20, 30, 40, 50...) tartib bilan yozib ko‘ring.'),
+        qItem(21, 'Tarjima tartibi', '"U qiz maktabda ingliz tilini o‘rganadi" gapida EGA qaysi?', ['maktabda', 'ingliz tilini', 'U qiz (She)', 'o‘rganadi'], 2, 'Harakatni bajaruvchi shaxs — "U qiz" (She).', 'Har doim "Kim? Nima?" savoli bilan egani toping.'),
+        qItem(22, 'Tarjima tartibi', 'O‘zbek tilida kesim ko‘pincha gapning oxirida kelsa, ingliz tilida qayerda turadi?', ['Oxirida', 'Egadan darhol keyin', 'Gap boshida', 'Ega bilan birga oxirida'], 1, 'Ingliz tilida kesim (fe’l) egadan darhol keyin qo‘yiladi.', 'O‘zbekchadagi "oxirgi so‘zni" inglizchada "ikkinchi o‘ringa" olib chiqing.'),
+        qItem(23, 'Alifbo va harflar', '"W" harfi inglizcha qanday nomlanadi?', ['Double-u', 'Vee', 'Double-v', 'O-w'], 0, '"W" harfi "double-u" (qo‘sh U) deb aytiladi.', 'Alifbo harflarining inglizcha nomlarini takrorlang.'),
+        qItem(24, 'Tovushlar va unlilar', '"Y" harfi "yellow, yes, you" so‘zlarida qanday tovush beradi?', ['/j/ ("y")', '/i/ ("i")', '/dʒ/ ("j")', '/w/ ("w")'], 0, 'So‘z boshida "Y" odatda /j/ (o‘zbekcha "y") tovushini beradi.', '"Y" so‘z boshida kelsa /j/, so‘z oxirida kelsa ko‘pincha /i/ yoki /aɪ/ bo‘ladi.'),
+        qItem(25, 'Harflar birikmalari', '"SH" birikmasi qaysi so‘zda bor?', ['Fish', 'Dish', 'Wash', 'Barchasida'], 3, 'Fish, dish va wash so‘zlarining barchasida "SH" (/ʃ/) bor.', 'So‘z ichidagi va oxiridagi "SH" ni aniq talaffuz qiling.'),
+        qItem(26, 'Raqamlar', '"3" raqami inglizcha qanday yoziladi?', ['Tree', 'Three', 'Thre', 'Trey'], 1, '3 — three (/θriː/). ("Tree" — daraxt degani!).', '"Three" (3) ni "th" bilan, "tree" (daraxt) ni "t" bilan farqlang.'),
+        qItem(27, 'Raqamlar', '"11" raqami inglizcha qanday aytiladi?', ['Eleven', 'Eleventh', 'One-one', 'Telve'], 0, '11 — eleven (/ɪˈlevn/).', '11 dan 19 gacha bo‘lgan sonlarni alohida yodlang.'),
+        qItem(28, 'Tarjima tartibi', '"Biz bugun kechqurun uyda dars qilamiz" gapida VAQT HOLI qaysi?', ['uyda', 'dars qilamiz', 'bugun kechqurun (tonight)', 'Biz'], 2, '"Bugun kechqurun" (tonight) — vaqt holi.', 'Gapdagi vaqt ifodalarini ajrata olish tarjimani osonlashtiradi.'),
+        qItem(29, 'Tarjima tartibi', '"Men olma yaxshi ko‘raman" gapining to‘g‘ri inglizcha varianti qaysi?', ['Apple I like.', 'I like apples.', 'Like I apples.', 'I apples like.'], 1, 'Subject (I) + Verb (like) + Object (apples).', 'Ega -> Fe’l -> To‘ldiruvchi zanjirini mustahkamlang.'),
+        qItem(30, 'Alifbo va harflar', 'Nega ingliz tilida harf bilan tovush har doim ham 100% mos kelmaydi?', ['Chunki 26 ta harf 40 dan ortiq tovushni ifodalaydi', 'Chunki alifbo noto‘g‘ri tuzilgan', 'Chunki unlilar yo‘q', 'Chunki faqat bosh harflar o‘qiladi'], 0, '26 ta harf yordamida 44 ta atrofida tovush ifodalanadi, shuning uchun transkripsiya va harf birikmalari muhim.', 'Yangi so‘z o‘rganganda ham imlosini, ham talaffuzini tekshiring.')
+      ];
+      return base;
+    }
+
+    function buildLesson2Questions() {
+      return [
+        qItem(1, 'To Be (Hozirgi zamon)', '"I ___ a first-year student." Bo‘sh o‘ringa nima qo‘yiladi?', ['am', 'is', 'are', 'were'], 0, '"I" olmoshidan keyin hozirgi zamonda "am" ishlatiladi.', '"I" -> har doim "am" (yoki o‘tmishda "was").'),
+        qItem(2, 'To Be (Hozirgi zamon)', '"She ___ very kind and helpful."', ['am', 'is', 'are', 'were'], 1, '"She" (birlik, 3-shaxs) bilan hozirgi zamonda "is" qo‘llanadi.', 'He, she, it -> is.'),
+        qItem(3, 'To Be (Hozirgi zamon)', '"They ___ in the classroom now."', ['am', 'is', 'are', 'was'], 2, '"They" (ko‘plik) bilan hozirgi zamonda "are" ishlatiladi.', 'We, you, they -> are.'),
+        qItem(4, 'Was / Were (O‘tgan zamon)', '"Yesterday, I ___ at home all day."', ['am', 'is', 'was', 'were'], 2, '"Yesterday" o‘tgan zamonni bildiradi; "I" uchun o‘tgan zamon shakli "was".', 'O‘tgan zamon signal so‘zlariga (yesterday, last week, ago) e’tibor bering.'),
+        qItem(5, 'Was / Were (O‘tgan zamon)', '"We ___ very happy after the lesson yesterday."', ['was', 'were', 'are', 'am'], 1, '"We" (ko‘plik) va "yesterday" (o‘tgan zamon) -> "were".', 'We, you, they (o‘tgan zamon) -> were.'),
+        qItem(6, 'Was / Were (O‘tgan zamon)', '"He ___ tired last night."', ['was', 'were', 'is', 'am'], 0, '"He" va "last night" (o‘tgan zamon) -> "was".', 'I, he, she, it (o‘tgan zamon) -> was.'),
+        qItem(7, 'Inkor va So‘roq', '"They ___ not late for the meeting." To‘g‘ri shaklni toping:', ['is', 'are', 'was', 'am'], 1, 'Ko‘plikdagi "They" bilan hozirgi zamonda "are not" (aren’t) ishlatiladi.', 'Inkor gapda "not" to be shaklidan keyin qo‘yiladi.'),
+        qItem(8, 'Inkor va So‘roq', '"___ you ready for the speaking club?"', ['Is', 'Am', 'Are', 'Was'], 2, '"You" bilan hozirgi zamon so‘roq gapida "Are" gap boshiga chiqadi.', 'So‘roq gapda to be (am/is/are/was/were) egadan oldinga o‘tadi.'),
+        qItem(9, 'Inkor va So‘roq', '"___ she at the library two hours ago?"', ['Is', 'Are', 'Was', 'Were'], 2, '"Two hours ago" o‘tgan zamon; "she" uchun so‘roq boshida "Was" keladi.', 'O‘tgan zamon so‘roq gaplarida "Was" yoki "Were" ni tanlang.'),
+        qItem(10, 'Inkor va So‘roq', '"It ___ cold last winter." (Inkor gap)', ['wasn’t', 'weren’t', 'aren’t', 'isn’t'], 0, '"It" va "last winter" -> o‘tgan zamon inkori "wasn’t" (was not).', 'Qisqa inkor shakllarni (isn’t, aren’t, wasn’t, weren’t) mashq qiling.'),
+        qItem(11, 'To Be (Hozirgi zamon)', '"My friends and I ___ ready to start."', ['am', 'is', 'are', 'was'], 2, '"My friends and I" = "We" (biz), shuning uchun "are".', 'Qo‘shma egani ("... and I") "we" ga almashtirib tekshiring.'),
+        qItem(12, 'Was / Were (O‘tgan zamon)', '"The weather ___ sunny yesterday."', ['was', 'were', 'is', 'are'], 0, '"The weather" = "It" (birlik), "yesterday" -> "was".', 'Ob-havo, vaqt, masofa gaplarida ega "it" bo‘ladi.'),
+        qItem(13, 'Was / Were (O‘tgan zamon)', '"The students ___ active in the last session."', ['was', 'were', 'is', 'am'], 1, '"The students" — ko‘plik, "last session" — o‘tgan zamon -> "were".', 'Ko‘plikdagi otlarga "were" qo‘llang.'),
+        qItem(14, 'To Be (Hozirgi zamon)', '"This book ___ very interesting."', ['am', 'is', 'are', 'were'], 1, '"This book" — birlik -> "is".', 'Birlikdagi otlar bilan "is" (hozirgi) yoki "was" (o‘tgan).'),
+        qItem(15, 'To Be (Hozirgi zamon)', '"Those books ___ on my desk."', ['am', 'is', 'are', 'was'], 2, '"Those books" — ko‘plik -> "are".', 'Ko‘plikdagi otlar bilan "are" (hozirgi) yoki "were" (o‘tgan).'),
+        qItem(16, 'Inkor va So‘roq', '"Where ___ you born?"', ['was', 'were', 'is', 'am'], 1, '"You" bilan tug‘ilgan joy haqida so‘raganda "Where were you born?" deyiladi.', 'Tayyor savol qoliplarini yodlab oling.'),
+        qItem(17, 'Inkor va So‘roq', '"Who ___ your first English teacher?"', ['was', 'were', 'are', 'am'], 0, '"Your first English teacher" birlikda -> "was".', 'Savol so‘zidan (Who, Where, Why) keyin to be keladi.'),
+        qItem(18, 'To Be (Hozirgi zamon)', '"I ___ not angry with you."', ['am', 'is', 'are', 'were'], 0, '"I am not..." — "I’m not" ham to‘g‘ri.', '"Am not" qisqartirilganda "I’m not" bo‘ladi ("amn’t" noto‘g‘ri!).'),
+        qItem(19, 'Was / Were (O‘tgan zamon)', '"___ they at home last Sunday?"', ['Was', 'Were', 'Are', 'Is'], 1, '"They" va "last Sunday" -> "Were".', 'So‘roq gapda zamon va shaxs mosligini tekshiring.'),
+        qItem(20, 'To Be (Hozirgi zamon)', '"Samarkand ___ a historic city."', ['am', 'is', 'are', 'were'], 1, 'Shahar nomi (birlik) va umumiy fakt -> "is".', 'Doimiy faktlar uchun hozirgi zamon ("is") ishlatiladi.'),
+        qItem(21, 'Was / Were (O‘tgan zamon)', '"When I was young, I ___ afraid of speaking English."', ['am', 'is', 'was', 'were'], 2, '"When I was young..." o‘tgan zamon hikoyasi -> "was".', 'Bitta gap ichida zamonlar mantiqiy mos kelishi kerak.'),
+        qItem(22, 'Inkor va So‘roq', '"No, they ___ not at the club yesterday."', ['was', 'were', 'is', 'am'], 1, '"They" + "yesterday" + inkor -> "were not" (weren’t).', 'Javobdagi "No" ko‘pincha inkor shaklni talab qiladi.'),
+        qItem(23, 'To Be (Hozirgi zamon)', '"You ___ my best peer friend."', ['am', 'is', 'are', 'was'], 1, '"You" bilan hozirgi zamonda "are" (bu yerda to‘g‘ri variantni tanlang: are).', 'Eslatma: "You" har doim "are" (hozirgi) yoki "were" (o‘tgan) oladi.'),
+        qItem(24, 'To Be (Hozirgi zamon)', 'Qaysi gap grammatik jihatdan TO‘G‘RI?', ['She are a teacher.', 'They is students.', 'He is a good speaker.', 'I is ready.'], 2, '"He is a good speaker." — to‘g‘ri tuzilgan gap.', 'Har bir shaxsga mos to be shaklini adashtirmang.'),
+        qItem(25, 'Was / Were (O‘tgan zamon)', 'Qaysi gap O‘TGAN ZAMONDA to‘g‘ri tuzilgan?', ['We was at school yesterday.', 'We were at school yesterday.', 'We are at school yesterday.', 'We is at school yesterday.'], 1, '"We were at school yesterday." — to‘g‘ri.', 'We + were + yesterday.'),
+        qItem(26, 'Inkor va So‘roq', '"Is he at home?" savoliga qisqa tasdiq javob qaysi?', ['Yes, he is.', 'Yes, he’s.', 'Yes, he are.', 'Yes, he was.'], 0, 'Qisqa tasdiq javobda qisqartma ("he’s") ishlatilmaydi: "Yes, he is."', 'Qisqa tasdiq javobda "Yes, + olmosh + am/is/are/was/were" shaklida yozing.'),
+        qItem(27, 'Inkor va So‘roq', '"Were they tired?" savoliga qisqa inkor javob qaysi?', ['No, they wasn’t.', 'No, they weren’t.', 'No, they aren’t.', 'No, they don’t.'], 1, '"No, they weren’t." (yoki "No, they were not.")', 'Qisqa inkor javobda "No, + olmosh + isn’t/aren’t/wasn’t/weren’t" ishlatiladi.'),
+        qItem(28, 'To Be (Hozirgi zamon)', '"My bag and my notebook ___ on the table."', ['is', 'are', 'was', 'am'], 1, 'Ikki narsa ("bag and notebook") = ko‘plik -> "are".', 'Bir nechta narsa sanalsa, ko‘plik shakli ("are") ishlatiladi.'),
+        qItem(29, 'Was / Were (O‘tgan zamon)', '"Why ___ you absent yesterday?"', ['was', 'were', 'is', 'do'], 1, '"You" uchun o‘tgan zamonda "were" ishlatiladi.', '"Why were you...?" — foydali savol qolipi.'),
+        qItem(30, 'To Be / Was-Were', 'To be fe’li o‘zbek tiliga qanday tarjima qilinadi?', ['Hozirgi zamonda ko‘pincha tushirib qoldiriladi ("-dir"/mavjud), o‘tgan zamonda "edi/bo‘lgan edi"', 'Faqat "bormoq" deb', 'Faqat "qilmoq" deb', 'Tarjima qilinmaydi'], 0, 'O‘zbek tilida "Men talabaman" deb aytiladi ("man" so‘zi shart emas), lekin inglizchada "I am a student" shart!', 'Inglizcha gapda to be ni tushirib qoldirmang.')
+      ].map((item, idx) => {
+        // Fix item 23 option so index 2 is "are"
+        if (idx === 22) {
+          return qItem(23, 'To Be (Hozirgi zamon)', '"You ___ my best peer friend."', ['am', 'is', 'are', 'was'], 2, '"You" bilan hozirgi zamonda har doim "are" ishlatiladi.', '"You" olmoshiga har doim "are" (hozirgi) va "were" (o‘tgan) qo‘llang.');
+        }
+        return item;
+      });
+    }
+
+    function buildLesson3Questions() {
+      return [
+        qItem(1, '3-shaxs (-s / -es)', '"She ___ English every evening."', ['study', 'studies', 'studying', 'studied'], 1, 'She (3-shaxs birlik) + undosh + Y -> "ies": studies.', 'Unli+Y -> -s (plays); undosh+Y -> -ies (studies).'),
+        qItem(2, '3-shaxs (-s / -es)', '"He ___ to work at 8 AM."', ['go', 'goes', 'going', 'went'], 1, '"Go" fe’li -o bilan tugagani uchun 3-shaxsda "-es" oladi: goes.', 'Oxiri -o, -ch, -sh, -ss, -x bilan tugasa "-es" qo‘shiladi.'),
+        qItem(3, 'Signal so‘zlar', '"I ___ drink coffee in the morning." (100% odat)', ['always', 'never', 'rarely', 'hardly ever'], 0, '"Always" (har doim) doimiy odatni bildiradi.', 'Always, usually, often, sometimes, never — Present Simple kalit so‘zlari.'),
+        qItem(4, 'Do / Does (Inkor)', '"They ___ live in Tashkent."', ['don’t', 'doesn’t', 'isn’t', 'aren’t'], 0, 'Ko‘plikdagi "They" bilan inkor uchun "don’t" (do not) ishlatiladi.', 'I, we, you, they -> don’t.'),
+        qItem(5, 'Do / Does (Inkor)', '"He ___ like fast food."', ['don’t', 'doesn’t', 'isn’t', 'aren’t'], 1, '"He" bilan inkor uchun "doesn’t" ishlatiladi, asosiy fe’l esa "-s" siz yoziladi.', 'Doesn’t dan keyin fe’lga "-s" qo‘shmang: "doesn’t like" (likes emas!).'),
+        qItem(6, 'Do / Does (So‘roq)', '"___ you speak Uzbek and English?"', ['Do', 'Does', 'Are', 'Is'], 0, '"You" bilan oddiy fe’l savolida "Do" ishlatiladi.', 'Oddiy fe’llarda (speak, go, work) savol yasash uchun "Do/Does" kerak.'),
+        qItem(7, 'Do / Does (So‘roq)', '"___ your brother play chess?"', ['Do', 'Does', 'Is', 'Are'], 1, '"Your brother" = "He" -> so‘roqda "Does" keladi.', 'Does + ega + V1 (asosiy shakldagi fe’l).'),
+        qItem(8, '3-shaxs (-s / -es)', '"The sun ___ in the east."', ['rise', 'rises', 'rising', 'rose'], 1, 'Tabiat qonuni / umumiy haqiqat -> Present Simple; "the sun" birlik -> rises.', 'Ilmiy faktlar va tabiat hodisalari Present Simple da ifodalanadi.'),
+        qItem(9, 'Signal so‘zlar', 'Chastota ravishlari (always, usually, often) odatda gapda qayerda turadi?', ['Asosiy fe’ldan oldin (lekin to be dan keyin)', 'Faqat gap oxirida', 'Faqat gap boshida', 'Artikldan oldin'], 0, '"I always wake up early." / "She is always happy."', 'Fe’ldan oldin, to be (am/is/are) dan keyin qo‘ying.'),
+        qItem(10, 'Do / Does (Inkor)', '"My sister ___ watch TV on weekdays."', ['don’t', 'doesn’t', 'not', 'no'], 1, '"My sister" = "She" -> "doesn’t watch".', '3-shaxs birlik inkorida "doesn’t" ishlatiladi.'),
+        qItem(11, '3-shaxs (-s / -es)', '"She ___ her teeth twice a day."', ['brush', 'brushes', 'brushs', 'brushing'], 1, '"Brush" -sh bilan tugagani uchun "-es" oladi: brushes.', '-sh oxiriga -es qo‘shing.'),
+        qItem(12, 'Do / Does (So‘roq)', '"What time ___ the train leave?"', ['do', 'does', 'is', 'are'], 1, '"The train" birlikda -> "does the train leave".', 'Jadval va qatnov vaqtlari Present Simple bilan aytiladi.'),
+        qItem(13, 'Signal so‘zlar', '"She is ___ late for class!" (Hech qachon kechikmaydi -> 0%)', ['always', 'never', 'often', 'usually'], 1, '"Never" inkor ma’noni beradi, shuning uchun gapda qo‘shimcha "not" ishlatilmaydi.', '"Never" bor gapda ikki karra inkor qilmang.'),
+        qItem(14, '3-shaxs (-s / -es)', '"He ___ English grammar very well."', ['teach', 'teaches', 'teachs', 'teaching'], 1, '"Teach" -ch bilan tugagani uchun "-es" qo‘shiladi: teaches.', '-ch bilan tugagan fe’llarga -es qo‘shing.'),
+        qItem(15, 'Do / Does (So‘roq)', '"Where ___ your parents live?"', ['do', 'does', 'are', 'is'], 0, '"Your parents" ko‘plikda -> "do your parents live".', 'Ko‘plikdagi otlar bilan "do" ishlatiladi.'),
+        qItem(16, '3-shaxs (-s / -es)', '"It ___ a lot in autumn."', ['rain', 'rains', 'raining', 'rained'], 1, '"It" (3-shaxs birlik) -> rains.', 'It + fe’l + s.'),
+        qItem(17, 'Do / Does (Inkor)', '"We ___ go to the cinema every week."', ['don’t', 'doesn’t', 'aren’t', 'wasn’t'], 0, '"We" + "don’t go".', 'We don’t + V1.'),
+        qItem(18, 'Signal so‘zlar', '"I visit my grandparents ___ a month."', ['once', 'one', 'first', 'one time'], 0, '"Bir marta" inglizcha "once" (ikki marta — twice).', 'Once a week / twice a month — foydali iboralar.'),
+        qItem(19, '3-shaxs (-s / -es)', '"Tom ___ his homework after dinner."', ['do', 'does', 'dos', 'doing'], 1, '"Do" fe’lining 3-shaxs shakli — "does".', 'Do -> does.'),
+        qItem(20, 'Do / Does (So‘roq)', '"___ they understand the rule?"', ['Do', 'Does', 'Are', 'Am'], 0, '"They" + oddiy fe’l -> "Do they understand".', 'Understand holat fe’li Present Simple da ishlatiladi.'),
+        qItem(21, '3-shaxs (-s / -es)', '"She ___ to music while walking."', ['listen', 'listens', 'listening', 'listened'], 1, '"She listens..." — oddiy -s qo‘shiladi.', 'Listen /ˈlɪsn/ da "t" o‘qilmasligini ham eslang!'),
+        qItem(22, 'Do / Does (Inkor)', '"He ___ have any questions."', ['don’t', 'doesn’t', 'hasn’t', 'haven’t'], 1, 'Present Simple inkorida "doesn’t have" ishlatiladi.', '"Doesn’t has" emas, "doesn’t have" to‘g‘ri!'),
+        qItem(23, 'Signal so‘zlar', '"On Saturdays, we ___ play football in the yard."', ['usually', 'now', 'yesterday', 'tomorrow'], 0, '"On Saturdays" muntazam odatni bildiradi -> "usually".', 'Hafta kunlari ko‘plikda ("On Saturdays") odatni bildiradi.'),
+        qItem(24, '3-shaxs (-s / -es)', '"Water ___ at 100 degrees Celsius."', ['boil', 'boils', 'boiling', 'boiled'], 1, 'Ilmiy haqiqat -> Present Simple; "water" sanalmaydi (birlik kabi) -> boils.', 'Umumiy haqiqatlar uchun Present Simple ishlating.'),
+        qItem(25, 'Do / Does (So‘roq)', '"How often ___ you practice speaking?"', ['do', 'does', 'are', 'have'], 0, '"How often do you...?" — qanchalik tez-tez?', '"How often...?" savoliga chastota ravishi bilan javob bering.'),
+        qItem(26, '3-shaxs (-s / -es)', '"A pilot ___ airplanes."', ['fly', 'flies', 'flys', 'flying'], 1, 'Undosh (l) + y -> "flies".', 'Fly -> flies.'),
+        qItem(27, 'Do / Does (Inkor)', '"I ___ eat spicy food."', ['don’t', 'doesn’t', 'am not', 'wasn’t'], 0, '"I don’t eat..."', 'I + don’t + V1.'),
+        qItem(28, 'Signal so‘zlar', 'Qaysi gap Present Simple uchun TO‘G‘RI?', ['She is liking tea.', 'She likes tea every morning.', 'She like tea.', 'Does she likes tea?'], 1, '"She likes tea every morning." — to‘g‘ri.', 'Likeni ko‘pincha -ing siz Present Simple da ishlating.'),
+        qItem(29, 'Do / Does (So‘roq)', '"Does she know the answer?" savoliga qisqa javob:', ['Yes, she does.', 'Yes, she is.', 'Yes, she do.', 'Yes, does she.'], 0, 'Savol "Does" bilan boshlansa, javob ham "does/doesn’t" bilan tugaydi.', 'Savoldagi yordamchi fe’lga mos javob bering.'),
+        qItem(30, 'Umumiy Present Simple', 'Present Simple qachon ishlatilmaydi?', ['Kundalik odatlarda', 'Umumiy haqiqatlarda', 'Aynan hozir ko‘z oldingizda davom etayotgan harakatda (hozir yomg‘ir yog‘yapti)', 'Dars jadvali haqida gapirganda'], 2, 'Aynan hozir sodir bo‘layotgan ish uchun Present Continuous ("is raining now") ishlatiladi.', 'Odat/fakt -> Present Simple; aynan hozir -> Present Continuous.')
+      ];
+    }
+
+    function buildLesson4Questions() {
+      return [
+        qItem(1, 'There is (Birlik)', '"___ a new student in our group."', ['There is', 'There are', 'There were', 'Are there'], 0, '"A new student" birlikda -> "There is".', 'Birlikdagi sanaladigan ot oldidan "There is a/an..." ishlatiladi.'),
+        qItem(2, 'There are (Ko‘plik)', '"___ many books on the shelf."', ['There is', 'There are', 'There was', 'Is there'], 1, '"Many books" ko‘plikda -> "There are".', 'Ko‘plikdagi otlar oldidan "There are..." qo‘llang.'),
+        qItem(3, 'Inkor shakli', '"There ___ any water in the bottle."', ['isn’t', 'aren’t', 'weren’t', 'are'], 0, '"Water" sanalmaydigan ot (birlik kabi) -> "There isn’t".', 'Sanalmaydigan otlar bilan "There is / isn’t" ishlatiladi.'),
+        qItem(4, 'Inkor shakli', '"There ___ any chairs in this room."', ['isn’t', 'aren’t', 'is', 'was'], 1, '"Chairs" ko‘plikda -> "There aren’t".', 'Ko‘plik inkorida ko‘pincha "any" ishlatiladi: "aren’t any".'),
+        qItem(5, 'So‘roq shakli', '"___ a park near your university?"', ['Is there', 'Are there', 'There is', 'There are'], 0, '"A park" birlikda -> so‘roq "Is there...?"', 'Savolda "is/are" gap boshiga chiqadi.'),
+        qItem(6, 'So‘roq shakli', '"___ any students in the hall?"', ['Is there', 'Are there', 'There are', 'There is'], 1, '"Students" ko‘plikda -> so‘roq "Are there...?"', 'Ko‘plik savolida "Are there any...?" ishlatiladi.'),
+        qItem(7, 'O‘tgan zamon (There was / were)', '"Yesterday, ___ a big concert in the city."', ['there is', 'there are', 'there was', 'there were'], 2, '"Yesterday" + "a big concert" (birlik) -> "there was".', 'O‘tgan zamon birlik -> there was.'),
+        qItem(8, 'O‘tgan zamon (There was / were)', '"Last week, ___ ten participants in the club."', ['there is', 'there are', 'there was', 'there were'], 3, '"Last week" + "ten participants" (ko‘plik) -> "there were".', 'O‘tgan zamon ko‘plik -> there were.'),
+        qItem(9, 'Tarjima ma’nosi', '"There is a pen on the table" o‘zbek tiliga qanday tarjima qilinadi?', ['Stol ustida ruchka bor.', 'Ruchka stol ustida.', 'Men ruchkani ko‘ryapman.', 'Stol ruchka ustida.'], 0, '"There is/are" ko‘pincha "bor / mavjud" ma’nosini beradi.', 'Yangilik sifatida biror narsa qayerda borligini aytishda "There is/are" ishlating.'),
+        qItem(10, 'There is vs It is', 'Qaysi gap TO‘G‘RI?', ['There is a good book.', 'There is a good book on the desk.', 'There are a good book.', 'Is there a book are good?'], 1, '"There is + narsa + joy" tuzilmasi tabiiy va to‘g‘ri.', 'Joy yoki mavjudlikni ko‘rsatishda "There is/are" ni to‘g‘ri qo‘llang.'),
+        qItem(11, 'There is (Birlik)', '"___ an apple in my bag."', ['There is', 'There are', 'There were', 'Are there'], 0, '"An apple" birlikda -> "There is".', 'Unli tovush oldidan "an" ishlatiladi.'),
+        qItem(12, 'There are (Ko‘plik)', '"___ two windows in the classroom."', ['There is', 'There are', 'There was', 'Is there'], 1, '"Two windows" ko‘plik -> "There are".', 'Soni 2 va undan ko‘p bo‘lsa — "There are".'),
+        qItem(13, 'Inkor shakli', '"There ___ no milk left in the fridge."', ['is', 'are', 'were', 'aren’t'], 0, '"No milk" allaqachon inkor ma’nosini beradi, fe’l ijobiy shaklda ("is") turadi.', '"No" ishlatilsa, fe’lni inkor qilmang ("There is no...").'),
+        qItem(14, 'So‘roq shakli', '"Is there a bank near here?" — "Yes, ___."', ['there is', 'it is', 'there are', 'is there'], 0, '"Is there...?" savoliga "Yes, there is." yoki "No, there isn’t." deb javob beriladi.', 'Savolda "there" bo‘lsa, javobda ham "there" qaytadi.'),
+        qItem(15, 'So‘roq shakli', '"Are there any questions?" — "No, ___."', ['there aren’t', 'there isn’t', 'they aren’t', 'there don’t'], 0, '"Questions" ko‘plik -> "No, there aren’t."', 'Ko‘plik savoliga "there aren’t" bilan javob bering.'),
+        qItem(16, 'O‘tgan zamon (There was / were)', '"___ any mistakes in your test yesterday?"', ['Was there', 'Were there', 'Is there', 'Are there'], 1, '"Mistakes" ko‘plik + "yesterday" -> "Were there".', 'O‘tgan zamon ko‘plik so‘roq -> Were there.'),
+        qItem(17, 'O‘tgan zamon (There was / were)', '"There ___ a lot of snow last winter."', ['was', 'were', 'are', 'is'], 0, '"Snow" sanalmaydigan ot + "last winter" -> "was".', 'Sanalmaydigan ot o‘tgan zamonda "was" oladi.'),
+        qItem(18, 'There is vs It is', '"It’s raining outside" va "There is a cat outside" farqi nimada?', ['Farqi yo‘q', '"It’s raining" hodisani bildiradi, "There is a cat" mushuk mavjudligini', '"There is" faqat o‘tmishda ishlatiladi', '"It’s" faqat ko‘plikda'], 1, 'Mavjudlik/joylashuv uchun "There is/are", ob-havo/vaqt/baho uchun "It is".', 'Kontekstga qarab "There is" yoki "It is" tanlang.'),
+        qItem(19, 'There are (Ko‘plik)', '"___ several English clubs at our university."', ['There is', 'There are', 'There was', 'Is there'], 1, '"Several English clubs" ko‘plik -> "There are".', 'Several, many, some + ko‘plik -> There are.'),
+        qItem(20, 'Inkor shakli', '"There ___ a bus at 7:00 AM on Sundays."', ['isn’t', 'aren’t', 'weren’t', 'don’t'], 0, '"A bus" birlik -> "isn’t".', 'Birlik inkorida "isn’t" ishlating.'),
+        qItem(21, 'So‘roq shakli', '"How many computers ___ in the lab?"', ['is there', 'are there', 'there are', 'there is'], 1, '"How many + ko‘plik ot + are there...?"', '"How many" dan keyin har doim ko‘plik ot keladi.'),
+        qItem(22, 'O‘tgan zamon (There was / were)', '"There ___ no internet connection an hour ago."', ['was', 'were', 'are', 'is'], 0, '"Connection" birlik + "an hour ago" -> "was".', 'Ago — o‘tgan zamon belgisi.'),
+        qItem(23, 'There is (Birlik)', '"___ a message for you."', ['There is', 'There are', 'There were', 'Are there'], 0, '"A message" birlik -> "There is".', 'Birlikda "There is a...".'),
+        qItem(24, 'There are (Ko‘plik)', '"___ lots of new words in this unit."', ['There is', 'There are', 'There was', 'Is there'], 1, '"Lots of new words" ko‘plik -> "There are".', 'Lots of + ko‘plik -> There are.'),
+        qItem(25, 'Inkor shakli', '"There ___ any cafés open late at night."', ['aren’t', 'isn’t', 'wasn’t', 'don’t'], 0, '"Cafés" ko‘plik -> "aren’t".', 'Ko‘plik inkorida "aren’t".'),
+        qItem(26, 'So‘roq shakli', '"Is there sugar in my tea?"', ['To‘g‘ri (sugar sanalmaydi, birlikda)', 'Noto‘g‘ri (are there bo‘lishi kerak)', 'Noto‘g‘ri (were there bo‘lishi kerak)', 'Faqat ko‘plikda to‘g‘ri'], 0, 'Sugar sanalmaydi, shuning uchun "Is there sugar...?" to‘g‘ri.', 'Sanalmaydigan otlar bilan "Is there...?" ishlating.'),
+        qItem(27, 'O‘tgan zamon (There was / were)', '"Were there many people at the seminar?"', ['To‘g‘ri (people ko‘plik + o‘tgan zamon)', 'Noto‘g‘ri (was there bo‘lishi kerak)', 'Noto‘g‘ri (is there bo‘lishi kerak)', 'Noto‘g‘ri'], 0, '"People" ko‘plik ot bo‘lgani uchun "Were there" to‘g‘ri.', '"People" ingliz tilida ko‘plik ot hisoblanadi.'),
+        qItem(28, 'There is vs It is', '"___ a great idea!" (Bu ajoyib g‘oya!)', ['It’s', 'There are', 'There were', 'Are there'], 0, 'Baho/fikr bildirganda "It’s a great idea!" deyiladi.', 'Fikr bildirishda "It’s..." ni to‘g‘ri ishlating.'),
+        qItem(29, 'There are (Ko‘plik)', '"___ different methods to learn English."', ['There is', 'There are', 'There was', 'Was there'], 1, '"Different methods" ko‘plik -> "There are".', 'Ko‘plik ot oldidan "There are".'),
+        qItem(30, 'Umumiy There is/are', 'Qaysi jumla XATO?', ['There is a cat.', 'There are two cats.', 'There is two cats.', 'There are many cats.'], 2, '"Two cats" ko‘plik bo‘lgani uchun "There is two cats" xato ("There are two cats" to‘g‘ri).', 'Otning birlik yoki ko‘plikligiga qarab "is" yoki "are" tanlang.')
+      ];
+    }
+
+    function buildLesson5Questions() {
+      return [
+        qItem(1, 'This (Yaqin birlik)', '"___ is my new notebook in my hand."', ['This', 'That', 'These', 'Those'], 0, 'Qo‘lda turgan (yaqin) bitta daftar -> "This".', 'Yaqin + birlik = This.'),
+        qItem(2, 'That (Uzoq birlik)', '"Look at ___ bird high in the sky!"', ['this', 'that', 'these', 'those'], 1, 'Osmondagi (uzoq) bitta qush -> "that".', 'Uzoq + birlik = That.'),
+        qItem(3, 'These (Yaqin ko‘plik)', '"___ are my friends standing right here."', ['This', 'That', 'These', 'Those'], 2, 'Shu yerdagi (yaqin) ko‘p do‘stlar -> "These".', 'Yaqin + ko‘plik = These.'),
+        qItem(4, 'Those (Uzoq ko‘plik)', '"___ houses over there belong to our relatives."', ['This', 'That', 'These', 'Those'], 3, 'Anavi yerdagi (uzoq) ko‘p uylar -> "Those".', 'Uzoq + ko‘plik = Those.'),
+        qItem(5, 'Ko‘plikka aylantirish', '"This is a student" gapining ko‘plik shakli qaysi?', ['That are students.', 'These are students.', 'Those is students.', 'This are students.'], 1, 'This -> These, is -> are, a student -> students.', 'Ko‘plikka o‘tkazishda ko‘rsatish olmoshini ham, to be ni ham, otni ham o‘zgartiring.'),
+        qItem(6, 'Ko‘plikka aylantirish', '"That is a tall tree" gapining ko‘plik shakli qaysi?', ['These are tall trees.', 'Those are tall trees.', 'Those is tall trees.', 'That are tall trees.'], 1, 'That -> Those, is -> are, a tall tree -> tall trees.', 'Uzoq + ko‘plik = Those are.'),
+        qItem(7, 'Ko‘plikka aylantirish', '"These are my keys" gapining birlik shakli qaysi?', ['This is my key.', 'That is my key.', 'This are my key.', 'These is my key.'], 0, 'These -> This, are -> is, keys -> key.', 'Birlikka o‘tkazishda ko‘plik qo‘shimchasini olib tashlang.'),
+        qItem(8, 'Ko‘plikka aylantirish', '"Those were interesting lessons" gapining birlik shakli qaysi?', ['This was an interesting lesson.', 'That was an interesting lesson.', 'Those was an interesting lesson.', 'That were an interesting lesson.'], 1, 'Those -> That, were -> was, lessons -> lesson.', 'O‘tgan zamon birlikda "was" ishlatiladi.'),
+        qItem(9, 'Kontekst va masofa', '"Can you pass me ___ book on the far table?"', ['this', 'that', 'these', 'those'], 1, '"Far table" (uzoq stol) + "book" (birlik) -> "that".', 'Masofani bildiruvchi so‘zlarga (here/there, near/far) e’tibor bering.'),
+        qItem(10, 'Kontekst va masofa', '"I love ___ shoes I am wearing today."', ['this', 'that', 'these', 'those'], 2, 'Kiyib turgan (yaqin) poyabzal (ko‘plik) -> "these".', 'Shoes juft/ko‘plik bo‘lgani uchun "these" yoki "those".'),
+        qItem(11, 'This / That / These / Those', '"What is ___?" (qo‘lingizdagi noma’lum narsani ko‘rsatib)', ['this', 'these', 'those', 'they'], 0, 'Yaqin + birlik -> "this".', 'What is this? — foydali savol.'),
+        qItem(12, 'This / That / These / Those', '"What are ___?" (uzoqda turgan ko‘p narsalarga ishora qilib)', ['this', 'that', 'those', 'it'], 2, 'Uzoq + ko‘plik -> "those".', 'Ko‘plik savolida "What are these/those?" ishlatiladi.'),
+        qItem(13, 'This / That / These / Those', '"___ is a great idea!" (suhbatdosh aytgan fikrga munosabat)', ['That', 'These', 'Those', 'They'], 0, 'Aytilgan fikr/holatga ishora qilishda ko‘pincha "That’s a great idea!" deyiladi.', '"That’s a great idea!" — jonli muloqot iborasi.'),
+        qItem(14, 'Ko‘plikka aylantirish', '"This apple is sweet." -> Ko‘plik shakli:', ['These apples are sweet.', 'Those apples is sweet.', 'These apple are sweet.', 'This apples are sweet.'], 0, 'This -> These, apple -> apples, is -> are.', 'Har bir qismni ko‘plikka moslang.'),
+        qItem(15, 'Ko‘plikka aylantirish', '"That car is fast." -> Ko‘plik shakli:', ['Those cars are fast.', 'These car are fast.', 'Those car is fast.', 'That cars are fast.'], 0, 'That -> Those, car -> cars, is -> are.', 'Those cars are fast.'),
+        qItem(16, 'Kontekst va masofa', '"___ exercises here are easy, but ___ over there are hard."', ['These / those', 'This / that', 'Those / these', 'That / this'], 0, '"Here" (yaqin) + ko‘plik = "these"; "over there" (uzoq) + ko‘plik = "those".', 'Yaqin-uzoq kontrastini to‘g‘ri juftlang.'),
+        qItem(17, 'This / That / These / Those', '"Hello, ___ is Sardor speaking." (telefonda o‘zini tanishtirish)', ['this', 'that', 'these', 'those'], 0, 'Inglizcha telefon muloqotida o‘zini tanishtirishda "This is..." ishlatiladi.', '"This is [Name] speaking." — tabiiy telefon iborasi.'),
+        qItem(18, 'This / That / These / Those', '"Who is ___ man standing by the door?"', ['this', 'that', 'these', 'those'], 1, 'Eshik oldida turgan (biroz uzoqroq) bitta erkak -> "that".', 'Birlik odamga ishora qilishda "this" yoki "that".'),
+        qItem(19, 'Ko‘plikka aylantirish', '"These are my notes." -> Birlik shakli:', ['This is my note.', 'That are my note.', 'This are my notes.', 'These is my note.'], 0, 'These -> This, are -> is, notes -> note.', 'Note — eslatma/konspekt.'),
+        qItem(20, 'Ko‘plikka aylantirish', '"Those are birds." -> Birlik shakli:', ['That is a bird.', 'This is a bird.', 'Those is a bird.', 'That are a bird.'], 0, 'Those -> That, are -> is, birds -> a bird.', 'Birlikda "a/an" artiklini unutmang.'),
+        qItem(21, 'This / That / These / Those', '"___ days, students learn fast with apps."', ['These', 'This', 'That', 'Those'], 0, '"These days" (hozirgi kunlarda) — ko‘plik va hozirgi davr ifodasi.', '"These days" — ko‘p uchraydigan ibora.'),
+        qItem(22, 'This / That / These / Those', '"In ___ days, there were no smartphones."', ['those', 'these', 'this', 'that'], 0, 'O‘tmishdagi o‘sha davrlar haqida gapirganda "In those days" deyiladi.', '"In those days" — o‘tmish davrlari uchun.'),
+        qItem(23, 'Kontekst va masofa', 'Qaysi gap XATO yozilgan?', ['This is my pen.', 'These are my pens.', 'This are my pens.', 'That is my bag.'], 2, '"This" birlikda, "pens" ko‘plikda — mos kelmaydi ("These are my pens" to‘g‘ri).', 'Ko‘rsatish olmoshi va otning sonini (birlik/ko‘plik) moslang.'),
+        qItem(24, 'Kontekst va masofa', 'Qaysi gap XATO yozilgan?', ['Those are flowers.', 'That is a flower.', 'Those is a flower.', 'These are flowers.'], 2, '"Those" ko‘plikda, "is a flower" birlikda — mos kelmaydi.', '"Those are..." bo‘lishi kerak.'),
+        qItem(25, 'This / That / These / Those', '"___ is my brother, Ali." (tanishtirish)', ['This', 'These', 'Those', 'They'], 0, 'Bir kishini tanishtirishda "This is..." ishlatiladi.', 'This is + ism.'),
+        qItem(26, 'This / That / These / Those', '"___ are our new classmates." (bir nechta kishini tanishtirish)', ['These', 'This', 'That', 'It'], 0, 'Bir nechta kishini tanishtirishda "These are..." ishlatiladi.', 'These are + ko‘plik.'),
+        qItem(27, 'Ko‘plikka aylantirish', '"This city is big." -> Ko‘plik:', ['These cities are big.', 'Those city are big.', 'These citys are big.', 'This cities are big.'], 0, 'City -> cities (-y -> -ies), this -> these, is -> are.', 'Cities imlosiga e’tibor bering.'),
+        qItem(28, 'Ko‘plikka aylantirish', '"That child is smart." -> Ko‘plik:', ['Those children are smart.', 'These childs are smart.', 'Those childs are smart.', 'That children are smart.'], 0, 'Child -> children (istisno ko‘plik!), that -> those, is -> are.', 'Child -> children istisno shaklini yodda tuting.'),
+        qItem(29, 'This / That / These / Those', '"I don’t like ___ kind of music."', ['this', 'these', 'those', 'they'], 0, '"Kind" birlikda -> "this kind" (yoki "that kind").', 'Birlik ot bilan "this/that".'),
+        qItem(30, 'Umumiy ko‘rsatish olmoshlari', 'Jadvalni to‘g‘ri yakunlang: Yaqin-birlik (This), Yaqin-ko‘plik (These), Uzoq-birlik (That), Uzoq-ko‘plik (...)', ['Those', 'This', 'These', 'It'], 0, 'Uzoq-ko‘plik = Those.', 'To‘rtlikni bitta jadvalda ko‘z oldingizga keltiring.')
+      ];
+    }
+
+    function buildLesson6Questions() {
+      // 50 ta mustahkamlovchi savol (1–5 mavzular bo'yicha)
+      const l1 = buildLesson1Questions().slice(0, 10).map((q, i) => qItem(i + 1, '1-Mavzu: Harflar, Raqamlar va Tarjima', q.question, q.options, q.correctIndex, q.explanation, q.advice));
+      const l2 = buildLesson2Questions().slice(0, 10).map((q, i) => qItem(i + 11, '2-Mavzu: To Be & Was / Were', q.question, q.options, q.correctIndex, q.explanation, q.advice));
+      const l3 = buildLesson3Questions().slice(0, 10).map((q, i) => qItem(i + 21, '3-Mavzu: Present Simple', q.question, q.options, q.correctIndex, q.explanation, q.advice));
+      const l4 = buildLesson4Questions().slice(0, 10).map((q, i) => qItem(i + 31, '4-Mavzu: There is / There are', q.question, q.options, q.correctIndex, q.explanation, q.advice));
+      const l5 = buildLesson5Questions().slice(0, 10).map((q, i) => qItem(i + 41, '5-Mavzu: This / That / These / Those', q.question, q.options, q.correctIndex, q.explanation, q.advice));
+      return [...l1, ...l2, ...l3, ...l4, ...l5];
+    }
+
+    const INITIAL_CLUB_DATA = {
+      schedules: [
+        {
+          id: 'lesson-1',
+          lessonNumber: 1,
+          day: 'Payshanba',
+          date: '19-Noyabr',
+          time: '13:20 – 14:40',
+          location: 'B-bino, 204-xona',
+          topic: '1-Dars: Harflar, Raqamlar, Harflar birikmalari, Alifbo, So‘zlar, Tovushlar va Gapni tarjima qilish tartibi',
+          level: 'A1 (Boshlang‘ich)',
+          speakerName: 'Diyorbek Begimqulov',
+          rsvps: ['Diyorbek Begimqulov', 'Jo‘rabek Esirgapov', 'Abdullayev Ulug‘bek'],
+          attendance: {
+            'Diyorbek Begimqulov': 'present',
+            'Jo‘rabek Esirgapov': 'present',
+            'Abdullayev Ulug‘bek': 'present'
+          },
+          resources: {
+            fullExplanation: `1. ALIFBO VA HARFLAR (26 TA HARF):
+• Ingliz alifbosida 26 ta harf bor. Unli harflar: A, E, I, O, U (va ba’zan Y). Qolganlari undosh harflar.
+• Harfning nomi va so‘z ichidagi tovushi har doim bir xil bo‘lavermaydi.
+
+2. TOVUSHLAR VA HARFLAR BIRIKMALARI:
+• SH -> /ʃ/ (ship, she, shop)
+• CH -> /tʃ/ (chair, child) yoki /k/ (school, chemistry)
+• PH -> /f/ (phone, photo)
+• TH -> /θ/ (think, three) va /ð/ (this, that, the)
+• CK -> /k/ (black, sock)
+
+3. RAQAMLAR (1–100+):
+• 1–12: one, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve.
+• 13–19 (-teen): thirteen, fourteen, fifteen, sixteen, seventeen, eighteen, nineteen.
+• 20, 30, 40, 50...: twenty, thirty, forty (e’tibor bering: "u" harfi yo‘q!), fifty, one hundred.
+
+4. SO‘ZLAR VA GAPNI TARJIMA QILISH TARTIBI:
+• Inglizcha darak gapda asosiy tartib: EGA (Subject) + KESIM / FE’L (Verb) + TO‘LDIRUVCHI (Object) + JOY (Place) + VAQT (Time).
+• Masalan: "Men har kuni maktabda ingliz tilini o‘rganaman." -> "I study English at school every day."`,
+            vocab: [],
+            socialLinks: [
+              {
+                id: 'lnk-l1-1',
+                platform: 'Telegram',
+                title: '1-Dars: Alifbo, Raqamlar va Tarjima tartibi konspekti',
+                url: 'https://t.me/english_peers_club'
+              }
+            ]
+          },
+          questions: buildLesson1Questions()
+        },
+        {
+          id: 'lesson-2',
+          lessonNumber: 2,
+          day: 'Shanba',
+          date: '21-Noyabr',
+          time: '13:20 – 14:40',
+          location: 'B-bino, 204-xona',
+          topic: '2-Dars: "To be" va "Was / Were" ni birgalikda to‘liq tushuntirish (namunaviy misollar bilan)',
+          level: 'A1 – A2',
+          speakerName: 'Jo‘rabek Esirgapov',
+          rsvps: ['Jo‘rabek Esirgapov', 'Diyorbek Begimqulov'],
+          attendance: {},
+          resources: {
+            fullExplanation: `1. HOZIRGI ZAMONDA "TO BE" (AM / IS / ARE):
+• I -> am ("I am a student." / "I’m ready.")
+• He, she, it -> is ("She is a teacher." / "It is cold.")
+• We, you, they -> are ("We are friends." / "They are here.")
+
+2. O‘TGAN ZAMONDA "WAS / WERE":
+• I, he, she, it -> was ("I was at home yesterday." / "He was tired.")
+• We, you, they -> were ("We were happy." / "They were at school.")
+
+3. INKOR VA SO‘ROQ SHAKLLARI:
+• Inkor: to be + not -> am not (I’m not), is not (isn’t), are not (aren’t), was not (wasn’t), were not (weren’t).
+• So‘roq: Am / Is / Are / Was / Were + EGA + ...?
+  Masalan: "Are you ready?" / "Were they at the club yesterday?"
+
+4. NAMUNAVIY TAQQOSLASH MISOLLARI:
+• Hozir: "Today I am busy." -> O‘tgan: "Yesterday I was busy."
+• Hozir: "They are in Samarkand." -> O‘tgan: "Last week they were in Samarkand."`,
+            vocab: [],
+            socialLinks: [
+              {
+                id: 'lnk-l2-1',
+                platform: 'Telegram',
+                title: '2-Dars: To be & Was/Were jadvali va mashqlar',
+                url: 'https://t.me/english_peers_club'
+              }
+            ]
+          },
+          questions: buildLesson2Questions()
+        },
+        {
+          id: 'lesson-3',
+          lessonNumber: 3,
+          day: 'Seshanba',
+          date: '24-Noyabr',
+          time: '13:20 – 14:40',
+          location: 'B-bino, 204-xona',
+          topic: '3-Mavzu: Present Simple (Oddiy hozirgi zamon)',
+          level: 'A1 – A2',
+          speakerName: 'Abdullayev Ulug‘bek',
+          rsvps: ['Abdullayev Ulug‘bek', 'Diyorbek Begimqulov'],
+          attendance: {},
+          resources: {
+            fullExplanation: `1. PRESENT SIMPLE QACHON ISHLATILADI?
+• Kundalik odatlar va muntazam harakatlar: "I wake up at 7 AM every day."
+• Umumiy haqiqatlar va ilmiy faktlar: "The sun rises in the east."
+• Dars jadvali va qatnov vaqtlari: "The class starts at 13:20."
+
+2. DARAK GAP VA 3-SHAKS BIRLIK (-S / -ES / -IES):
+• I, we, you, they + V1: "We speak English in our club."
+• He, she, it + V1 + s/es/ies:
+  - "She works" (+s)
+  - "He goes / watches / washes" (-o, -ch, -sh, -ss, -x -> +es)
+  - "She studies" (undosh + y -> +ies), "He plays" (unli + y -> +s)
+
+3. INKOR VA SO‘ROQ (DO / DOES):
+• Inkor: I/we/you/they + don’t + V1; he/she/it + doesn’t + V1 (fe’lda -s qolmaydi!).
+• So‘roq: Do + I/we/you/they + V1...? | Does + he/she/it + V1...?
+
+4. SIGNAL SO‘ZLAR:
+• always, usually, often, sometimes, never, every day/week/month, once/twice a week.`,
+            vocab: [],
+            socialLinks: [
+              {
+                id: 'lnk-l3-1',
+                platform: 'YouTube',
+                title: '3-Mavzu: Present Simple qoidalari va misollar',
+                url: 'https://www.youtube.com/results?search_query=present+simple+tense+examples'
+              }
+            ]
+          },
+          questions: buildLesson3Questions()
+        },
+        {
+          id: 'lesson-4',
+          lessonNumber: 4,
+          day: 'Payshanba',
+          date: '26-Noyabr',
+          time: '13:20 – 14:40',
+          location: 'B-bino, 204-xona',
+          topic: '4-Mavzu: There is / There are (Mavjudlik va joylashuv ifodasi)',
+          level: 'A1 – A2',
+          speakerName: '',
+          rsvps: ['Diyorbek Begimqulov'],
+          attendance: {},
+          resources: {
+            fullExplanation: `1. ASOSIY QOIDA:
+• Biror joyda biror narsa/shaxs BORLIGINI aytishda "There is / There are" ishlatiladi.
+• Tarjimada ko‘pincha oxiridan ("...da ... bor") o‘giriladi:
+  "There is a book on the table." -> Stol ustida kitob bor.
+
+2. HOZIRGI ZAMON (THERE IS / THERE ARE):
+• Birlik va sanalmaydigan otlar: "There is a pen..." / "There is some water..."
+• Ko‘plik otlar: "There are three students..." / "There are many books..."
+
+3. O‘TGAN ZAMON (THERE WAS / THERE WERE):
+• Birlik / sanalmaydigan: "There was a meeting yesterday."
+• Ko‘plik: "There were many people at the event."
+
+4. INKOR VA SO‘ROQ:
+• Inkor: There isn’t / There aren’t / There wasn’t / There weren’t (yoki "There is no...").
+• So‘roq: Is there...? / Are there...? / Was there...? / Were there...?`,
+            vocab: [],
+            socialLinks: []
+          },
+          questions: buildLesson4Questions()
+        },
+        {
+          id: 'lesson-5',
+          lessonNumber: 5,
+          day: 'Payshanba',
+          date: '26-Noyabr',
+          time: '15:00 – 16:20',
+          location: 'B-bino, 204-xona',
+          topic: '5-Mavzu: This, That, These, Those (Ko‘rsatish olmoshlari)',
+          level: 'A1 – A2',
+          speakerName: '',
+          rsvps: ['Diyorbek Begimqulov'],
+          attendance: {},
+          resources: {
+            fullExplanation: `1. YAQIN VA UZOQ, BIRLIK VA KO‘PLIK:
+• THIS (bu — yaqin, birlik): "This is my phone."
+• THAT (u / anavi — uzoq, birlik): "That is a tall building."
+• THESE (bular — yaqin, ko‘plik): "These are my notes."
+• THOSE (ular / anavilar — uzoq, ko‘plik): "Those are new students."
+
+2. BIRLIKDAN KO‘PLIKKA O‘TKAZISH:
+• This -> These | That -> Those
+• is -> are | was -> were
+• Misol: "This is a good book." -> "These are good books."
+• Misol: "That was an interesting task." -> "Those were interesting tasks."`,
+            vocab: [],
+            socialLinks: []
+          },
+          questions: buildLesson5Questions()
+        },
+        {
+          id: 'lesson-6',
+          lessonNumber: 6,
+          day: 'Shanba',
+          date: '28-Noyabr',
+          time: '13:20 – 15:20',
+          location: 'B-bino, 204-xona',
+          topic: '6-Mavzu: Takrorlash, o‘tilganlarni mustahkamlash va 5 ta mavzu asosida 50 ta test tahlili',
+          level: 'A1 – A2 (Katta Takrorlash)',
+          speakerName: 'Diyorbek Begimqulov',
+          rsvps: ['Diyorbek Begimqulov', 'Jo‘rabek Esirgapov', 'Abdullayev Ulug‘bek'],
+          attendance: {},
+          resources: {
+            fullExplanation: `1. TAKRORLASH VA MUSTAHKAMLASH REJASI:
+• 1-Mavzu: Harflar, raqamlar, harflar birikmalari, alifbo, so‘zlar, tovushlar va tarjima tartibi (Ega + Fe’l + To‘ldiruvchi + Joy + Vaqt).
+• 2-Mavzu: "To be" (am/is/are) va "Was/Were" (o‘tgan zamon), inkor va so‘roq shakllari.
+• 3-Mavzu: "Present Simple" (odatlar, faktlar, 3-shaxs -s/-es/-ies, do/does).
+• 4-Mavzu: "There is / There are" va "There was / There were".
+• 5-Mavzu: "This / That / These / Those" va birlik-ko‘plik o‘zgarishlari.
+
+2. 50 TALIK KOMPLEKS TEST VA TAHLIL:
+• Quyidagi testda barcha 5 ta mavzudan 10 tadan jami 50 ta savol jamlangan.
+• Testni yakunlagach, har bir mavzu bo‘yicha o‘zlashtirish foizini (%), kuchli/zaif jihatlarni va amaliy tavsiyalarni ko‘rasiz!`,
+            vocab: [],
+            socialLinks: []
+          },
+          questions: buildLesson6Questions()
+        }
+      ],
+      submissions: [
+        {
+          id: 'sub-1',
+          userName: 'Jo‘rabek Esirgapov',
+          lessonTitle: '3-Mavzu: Present Simple',
+          answerText: '1. I wake up at 7:00 AM every day.\n2. Does she speak English? — Yes, she does.\n3. We don’t watch TV during study hours.',
+          status: 'Reviewed',
+          mentorComment: 'Juda yaxshi! Signal so‘zlar va yordamchi fe’llar to‘g‘ri. — (Diyorbek Begimqulov)'
+        }
+      ],
+      reviews: [
+        {
+          id: 'rev-1',
+          targetName: 'Diyorbek Begimqulov (Moderator)',
+          authorName: 'Jo‘rabek Esirgapov',
+          wentWell: 'Mavzularni bosqichma-bosqich va sodda misollar bilan tushuntirdingiz.',
+          toImprove: 'Testdan keyin xato qilingan savollar bo‘yicha qo‘shimcha mashqlar qo‘shish foydali.',
+          createdAt: 'Bugun'
+        }
+      ],
+      announcements: [
+        {
+          id: 'ann-1',
+          title: '📘 Jadval va Resurslar bo‘limi yangilandi!',
+          body: '19-noyabrdan 28-noyabrgacha bo‘lgan 6 ta dars jadvali, mavzu tushuntirishlari, har bir dars uchun 30 ta (6-mavzuda 50 ta) test, natija tahlili va moderator qo‘lda to‘ldiradigan dars lug‘ati qo‘shildi.',
+          author: 'Diyorbek Begimqulov',
+          date: 'Bugun'
+        }
+      ],
+      qaList: [
+        {
+          id: 'qa-1',
+          question: 'Nega "forty" (40) da "u" harfi yozilmaydi, lekin "four" (4) da yoziladi?',
+          authorName: 'Abdullayev Ulug‘bek',
+          createdAt: '1 soat oldin',
+          replies: [
+            {
+              id: 'rep-1',
+              authorName: 'Diyorbek Begimqulov',
+              text: 'Ingliz tilining tarixiy imlo qoidalariga ko‘ra "forty" so‘zida "u" tushib qolgan. Shuning uchun imloda "forty" deb yodlash kerak.'
+            }
+          ]
+        }
+      ],
+      vocabList: [
+        {
+          id: 'voc-1',
+          word: 'Consistent',
+          transcription: '/kənˈsɪstənt/',
+          translation: 'Muntazam, izchil',
+          example: 'Consistent practice helps you master grammar.'
+        },
+        {
+          id: 'voc-2',
+          word: 'Pronunciation',
+          transcription: '/prəˌnʌnsiˈeɪʃn/',
+          translation: 'Talaffuz',
+          example: 'Listen carefully and repeat the word.'
+        }
+      ]
+    };
+
+    // =========================================================================
+    // 3. TALAFFUZ STUDIYASI MA'LUMOTLARI
+    // =========================================================================
+    const MINIMAL_PAIRS = [
+      {
+        id: 'mp-1',
+        pairTitle: '/ɪ/ (qisqa) vs /iː/ (cho‘ziq)',
+        wordA: 'ship',
+        ipaA: '/ʃɪp/',
+        uzA: 'kema',
+        wordB: 'sheep',
+        ipaB: '/ʃiːp/',
+        uzB: 'qo‘y',
+        tip: '"Ship"da og‘iz bo‘sh va tovush juda qisqa kesiladi. "Sheep"da lablar tabassum holatida ikki yonga tortilib tovush cho‘ziladi.'
+      },
+      {
+        id: 'mp-2',
+        pairTitle: '/æ/ (keng) vs /e/ (qisqa)',
+        wordA: 'bad',
+        ipaA: '/bæd/',
+        uzA: 'yomon',
+        wordB: 'bed',
+        ipaB: '/bed/',
+        uzB: 'karavot',
+        tip: '"Bad" so‘zida jag‘ingizni pastga tushirib og‘izni kengroq oching. "Bed" o‘zbekcha "e" ga yaqin.'
+      },
+      {
+        id: 'mp-3',
+        pairTitle: '/θ/ (tishlar orasida) vs /s/ (oddiy)',
+        wordA: 'think',
+        ipaA: '/θɪŋk/',
+        uzA: 'o‘ylamoq',
+        wordB: 'sink',
+        ipaB: '/sɪŋk/',
+        uzB: 'cho‘kmoq / rakovina',
+        tip: '"Think"da til uchini old tishlar orasiga qo‘yib havo puflang. Til tishlar orqasida qolsa "sink" bo‘ladi.'
+      }
+    ];
+
+    const TONGUE_TWISTERS = [
+      {
+        id: 'tt-1',
+        level: 'Oson',
+        focus: '/r/ va /l/ tovushlari',
+        text: 'Red lorry, yellow lorry, red lorry, yellow lorry.',
+        uz: 'Qizil yuk mashinasi, sariq yuk mashinasi.'
+      },
+      {
+        id: 'tt-2',
+        level: 'O‘rta',
+        focus: '/ʃ/ va /s/ tovushlari',
+        text: 'She sells seashells by the seashore.',
+        uz: 'U dengiz qirg‘og‘ida chig‘anoqlar sotadi.'
+      }
+    ];
+
+    const SHADOWING_EXERCISES = [
+      {
+        id: 'sh-1',
+        plainText: 'I study English at school every day.',
+        stressedDisplay: 'I STU-dy ENG-lish at SCHOOL EV-ery DAY.',
+        uz: 'Men har kuni maktabda ingliz tilini o‘rganaman.',
+        note: 'Urg‘uli bo‘g‘inlarni aniq va ravon talaffuz qiling.'
+      },
+      {
+        id: 'sh-2',
+        plainText: 'There are many new words in this lesson.',
+        stressedDisplay: 'There ARE MAN-y NEW WORDS in THIS LES-son.',
+        uz: 'Ushbu darsda ko‘plab yangi so‘zlar bor.',
+        note: 'Asosiy mazmun beruvchi so‘zlarga urg‘u bering.'
+      }
+    ];
+
+    const SILENT_LETTERS = [
+      { word: 'Knight', ipa: '/naɪt/', silent: 'K va GH o‘qilmaydi', uz: 'Ritsar' },
+      { word: 'Island', ipa: '/ˈaɪlənd/', silent: 'S o‘qilmaydi', uz: 'Orol' },
+      { word: 'Wednesday', ipa: '/ˈwenzdeɪ/', silent: 'Birinchi D o‘qilmaydi', uz: 'Chorshanba' },
+      { word: 'Listen', ipa: '/ˈlɪsn/', silent: 'T o‘qilmaydi', uz: 'Tinglamoq' }
+    ];
+
+    const ALL_BADGES = [
+      { id: 'member', title: 'Klub a’zosi', desc: 'English Peers safiga qo‘shildi', icon: '🌱', minXp: 0 },
+      { id: 'learner', title: 'Bilimdon', desc: 'Testlar va mashqlarda faol', icon: '📘', minXp: 80 },
+      { id: 'helper', title: 'Faol yordamchi', desc: 'Tengdoshlarga fikr yoki javob yozdi', icon: '🤝', minXp: 120 },
+      { id: 'speaker', title: 'Spiker / Moderator', desc: 'Dars mavzusini o‘tishga yozildi', icon: '🎙️', minXp: 160 }
+    ];
+
+    // =========================================================================
+    // 4. STATE BOSHQARUVI
+    // =========================================================================
+    function loadJson(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function saveJson(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch {
+        // Ignore
+      }
+    }
+
+    const state = {
+      security: loadJson(STORAGE_KEYS.SECURITY, DEFAULT_SECURITY),
+      profile: loadJson(STORAGE_KEYS.PROFILE, null),
+      club: loadJson(STORAGE_KEYS.CLUB, INITIAL_CLUB_DATA),
+      reminders: loadJson(STORAGE_KEYS.REMINDERS, {}),
+      activeTab: 'schedule', // 'schedule' | 'pronunciation' | 'lessons' | 'club' | 'profile'
+      scheduleDayFilter: 'Barchasi',
+      // Har bir darsning resurs modali ichidagi ichki tab: 'explanation' | 'vocab' | 'test' | 'links'
+      activeResourceTab: 'explanation',
+      // Har bir dars bo'yicha test holati: { [lessonId]: { answers: { [qId]: optIdx }, submitted: bool, reviewFilter: 'all' | 'wrong' | 'right' } }
+      lessonTestStates: {},
+      studioTab: 'tts',
+      ttsText: 'Hello everyone! Welcome to our English Peers club. Consistent practice makes your pronunciation clear.',
+      ttsAccent: 'en-US',
+      ttsRate: 1.0,
+      earQuizTarget: null,
+      earQuizFeedback: null,
+      micTargetPhrase: 'I study English at school every day.',
+      spokenResult: null,
+      micError: '',
+      lessonsTab: 'homework',
+      clubTab: 'announcements',
+      vocabIndex: 0,
+      vocabFlipped: false,
+      showOnboardingKeyBox: false,
+      showOnboardingKeyPlain: false,
+      onboardingKeyError: '',
+      showProfileKeyPlain: false,
+      showAdminKeysPlain: false
+    };
+
+    function persistAll() {
+      saveJson(STORAGE_KEYS.SECURITY, state.security);
+      if (state.profile) {
+        saveJson(STORAGE_KEYS.PROFILE, state.profile);
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.PROFILE);
+      }
+      saveJson(STORAGE_KEYS.CLUB, state.club);
+      saveJson(STORAGE_KEYS.REMINDERS, state.reminders);
+      if (window.EPApi && window.EPApi.ready) {
+        window.EPApi.saveState({
+          profile: state.profile,
+          security: state.security,
+          club: state.club,
+          reminders: state.reminders
+        }).catch(() => {});
+      }
+    }
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const el = document.createElement('div');
+      const isWarn = type === 'warning';
+      el.className = `animate-fade-in px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 backdrop-blur-md text-xs font-medium leading-snug ${
+        isWarn
+          ? 'bg-amber-950/95 text-amber-100 border border-amber-500/40'
+          : 'bg-slate-900/95 text-white border border-white/10'
+      }`;
+      el.innerHTML = `
+        <span class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+          isWarn ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-400'
+        }">${isWarn ? '⚠️' : '✓'}</span>
+        <span>${escapeHtml(message)}</span>
+      `;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-6px)';
+        el.style.transition = 'all 0.2s ease';
+        setTimeout(() => el.remove(), 220);
+      }, 3400);
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function getRemainingModMs() {
+      if (!state.profile || state.profile.activeRole !== 'temp_moderator') return 0;
+      return Math.max(0, (state.profile.modExpiresAt || 0) - Date.now());
+    }
+
+    function formatRemainingTime(ms) {
+      if (ms <= 0) return '00:00';
+      const totalSec = Math.floor(ms / 1000);
+      const hrs = Math.floor(totalSec / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const secs = totalSec % 60;
+      const pad = (n) => String(n).padStart(2, '0');
+      if (hrs > 0) return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+      return `${pad(mins)}:${pad(secs)}`;
+    }
+
+    function isSuperAdmin() {
+      return state.profile?.activeRole === 'super_admin';
+    }
+
+    function isTempModerator() {
+      return state.profile?.activeRole === 'temp_moderator' && getRemainingModMs() > 0;
+    }
+
+    function hasModeratorPowers() {
+      return isSuperAdmin() || isTempModerator();
+    }
+
+    function addXp(amount, logText) {
+      if (!state.profile) return;
+      state.profile.xp = (state.profile.xp || 0) + amount;
+      state.profile.history = [
+        { text: `${logText} (+${amount} XP)`, time: 'Hozirgina' },
+        ...(state.profile.history || []).slice(0, 9)
+      ];
+      persistAll();
+    }
+
+    function evaluateSecretKey(enteredKey, userFullName = 'A’zo') {
+      const cleanKey = (enteredKey || '').trim();
+      if (!cleanKey) return { valid: false, error: 'Kalit so‘z kiritilmadi.' };
+
+      if (cleanKey === state.security.masterKey) {
+        state.security.accessLogs = [
+          {
+            id: 'log-' + Date.now(),
+            user: userFullName,
+            action: 'Bosh Tashkilotchi sifatida tizimga kirdi',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          },
+          ...(state.security.accessLogs || []).slice(0, 9)
+        ];
+        persistAll();
+        return { valid: true, role: 'super_admin', expiresAt: null, keyVersion: state.security.keyVersion };
+      }
+
+      if (cleanKey === state.security.tempModKey) {
+        const durationMin = state.security.defaultDurationMinutes || 60;
+        const expiresAt = Date.now() + durationMin * 60 * 1000;
+        state.security.accessLogs = [
+          {
+            id: 'log-' + Date.now(),
+            user: userFullName,
+            action: `Vaqtinchalik Moderator oldi (${durationMin} daqiqa)`,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          },
+          ...(state.security.accessLogs || []).slice(0, 9)
+        ];
+        persistAll();
+        return { valid: true, role: 'temp_moderator', expiresAt, keyVersion: state.security.keyVersion };
+      }
+
+      return { valid: false, error: 'Noto‘g‘ri maxsus kalit so‘z!' };
+    }
+
+    function speakEnglish(text, accent = state.ttsAccent, rate = state.ttsRate) {
+      if (!text || !text.trim()) return;
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        showToast('Brauzeringizda ovozli o‘qish (TTS) qo‘llab-quvvatlanmaydi.', 'warning');
+        return;
+      }
+      try {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text.trim());
+        utter.lang = accent;
+        utter.rate = rate;
+        const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+        const matched =
+          voices.find((v) => v.lang === accent && (v.name.includes('Google') || v.name.includes('Natural'))) ||
+          voices.find((v) => v.lang && v.lang.startsWith(accent.slice(0, 5))) ||
+          voices.find((v) => v.lang && v.lang.startsWith('en'));
+        if (matched) utter.voice = matched;
+        window.speechSynthesis.speak(utter);
+      } catch {
+        showToast('Ovozni ijro etishda xatolik yuz berdi.', 'warning');
+      }
+    }
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
+
+    setInterval(() => {
+      if (!state.profile) return;
+      if (state.profile.activeRole === 'temp_moderator') {
+        const now = Date.now();
+        const expired = now >= (state.profile.modExpiresAt || 0);
+        const rotated = state.profile.modKeyVersion !== state.security.keyVersion;
+        if (expired || rotated) {
+          state.profile.activeRole = state.profile.baseRole || 'learner';
+          state.profile.modExpiresAt = null;
+          state.profile.modKeyVersion = null;
+          persistAll();
+          showToast(rotated ? 'Kalit yangilandi, oddiy rolga qaytdingiz.' : 'Moderatorlik muddati tugadi.', 'warning');
+          render();
+          return;
+        }
+      }
+      const timerEl = document.getElementById('live-mod-timer');
+      if (timerEl) timerEl.textContent = formatRemainingTime(getRemainingModMs());
+      const profileTimerEl = document.getElementById('profile-mod-timer');
+      if (profileTimerEl) profileTimerEl.textContent = formatRemainingTime(getRemainingModMs());
+    }, 1000);
+
+    function getLessonTestState(lessonId) {
+      if (!state.lessonTestStates[lessonId]) {
+        state.lessonTestStates[lessonId] = {
+          answers: {},
+          submitted: false,
+          reviewFilter: 'all'
+        };
+      }
+      return state.lessonTestStates[lessonId];
+    }
+
+    // =========================================================================
+    // 5. ASOSIY RENDER FUNKSIYASI
+    // =========================================================================
+    function render() {
+      const appEl = document.getElementById('app');
+      if (!appEl) return;
+
+      if (!state.profile) {
+        appEl.innerHTML = renderOnboarding();
+        return;
+      }
+
+      appEl.innerHTML = `
+        ${renderHeader()}
+        <main class="flex-1 px-4 pt-4 pb-24 space-y-4 animate-fade-in">
+          ${renderActiveTabContent()}
+        </main>
+        ${renderBottomNav()}
+      `;
+    }
+
+    function renderOnboarding() {
+      const interests = ['Speaking', 'Reading', 'Writing', 'Listening', 'Talaffuz', 'Lug‘at', 'Tajriba yo‘q'];
+      return `
+        <div class="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+          <div class="w-full bg-white rounded-3xl shadow-xl p-6 space-y-5">
+            <div>
+              <div class="flex items-center justify-between">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-xl shadow-md">
+                  EP
+                </div>
+                <span class="text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full">
+                  100% Bepul Klub
+                </span>
+              </div>
+              <h1 class="text-2xl font-extrabold text-slate-900 mt-4">English Peers</h1>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Tengdoshlar bilan birga bepul ingliz tilini, dars tushuntirishlari, 30–50 savollik testlar va lug‘atlarni o‘rganing.
+              </p>
+            </div>
+
+            <form id="onboarding-form" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Ism va Familiyangiz *</label>
+                <input
+                  id="onb-fullname"
+                  type="text"
+                  required
+                  placeholder="Masalan: Diyorbek Begimqulov"
+                  class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-sm"
+                />
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Guruh / Yo‘nalish</label>
+                  <select id="onb-group" class="w-full px-3 py-3 rounded-xl border border-slate-200 bg-white text-xs font-medium outline-none" required>
+                    <option value="101">101-guruh — Axborot tizimlari va texnologiyalari</option>
+                    <option value="102">102-guruh — Sun’iy intellekt</option>
+                    <option value="103">103-guruh — Matematika</option>
+                    <option value="104">104-guruh — Matematika</option>
+                    <option value="105">105-guruh — Matematika</option>
+                    <option value="106">106-guruh — Oliy matematika</option>
+                    <option value="107">107-guruh — Oliy matematika</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Ingliz tili darajasi</label>
+                  <select id="onb-level" class="w-full px-3 py-3 rounded-xl border border-slate-200 bg-white text-xs font-medium outline-none">
+                    <option value="A1" selected>A1 (Boshlang‘ich)</option>
+                    <option value="A2">A2 (Elementary)</option>
+                    <option value="B1">B1 (O‘rta)</option>
+                    <option value="B2">B2 (Upper-intermediate)</option>
+                    <option value="C1">C1 (Advanced)</option>
+                    <option value="C2">C2 (Proficiency)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">Qiziqishlaringiz</label>
+                <div id="onb-interests" class="flex flex-wrap gap-1.5">
+                  ${interests
+                    .map((item) => {
+                      const defActive = item === 'Grammatika' || item === 'Speaking';
+                      return `
+                        <button
+                          type="button"
+                          data-interest="${escapeHtml(item)}"
+                          onclick="toggleOnboardingInterest(this)"
+                          class="onb-interest-btn px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                            defActive ? 'bg-indigo-600 text-white active-interest' : 'bg-slate-100 text-slate-600'
+                          }"
+                        >
+                          ${defActive ? '✓ ' : '+ '}${escapeHtml(item)}
+                        </button>
+                      `;
+                    })
+                    .join('')}
+                </div>
+              </div>
+
+              <div class="pt-1">
+                <button
+                  type="button"
+                  onclick="toggleOnboardingKeyBox()"
+                  class="w-full py-2.5 px-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-between"
+                >
+                  <span>🔑 Maxsus kalit bilan kirish (ixtiyoriy)</span>
+                  <span>${state.showOnboardingKeyBox ? '▲' : '▼'}</span>
+                </button>
+
+                ${
+                  state.showOnboardingKeyBox
+                    ? `
+                  <div class="mt-2.5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                    <label class="block text-[11px] font-bold text-slate-700">Maxsus kalit so‘zni kiriting:</label>
+                    <div class="relative">
+                      <input
+                        id="onb-secret-key"
+                        type="${state.showOnboardingKeyPlain ? 'text' : 'password'}"
+                        autocomplete="off"
+                        placeholder="••••••••••••"
+                        class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-300 bg-white text-xs font-mono focus:border-indigo-500 outline-none"
+                      />
+                      <button
+                        type="button"
+                        onclick="toggleOnboardingKeyPlain()"
+                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs px-1"
+                      >
+                        ${state.showOnboardingKeyPlain ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+                    ${
+                      state.onboardingKeyError
+                        ? `<p class="text-[11px] font-bold text-rose-600 bg-rose-50 p-2 rounded-lg border border-rose-200">❌ ${escapeHtml(state.onboardingKeyError)}</p>`
+                        : ''
+                    }
+                  </div>
+                `
+                    : ''
+                }
+              </div>
+
+              <button
+                type="submit"
+                class="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-200 transition-all"
+              >
+                Klubga qo‘shilish (+50 XP) →
+              </button>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderHeader() {
+      const p = state.profile;
+      const superAdmin = isSuperAdmin();
+      const tempMod = isTempModerator();
+      const remMs = getRemainingModMs();
+
+      let roleBanner = '';
+      if (superAdmin) {
+        roleBanner = `
+          <div class="flex items-center justify-between w-full bg-amber-400/20 border border-amber-300/40 px-3 py-1.5 rounded-xl">
+            <div class="flex items-center gap-1.5 text-xs font-bold text-amber-100">
+              <span>👑</span>
+              <span>Bosh Tashkilotchi (Moderator huquqi faol)</span>
+            </div>
+            <button onclick="switchTab('profile')" class="text-[10px] bg-amber-300 text-slate-900 font-extrabold px-2 py-0.5 rounded-lg">
+              Kalitlar
+            </button>
+          </div>
+        `;
+      } else if (tempMod) {
+        roleBanner = `
+          <div class="flex items-center justify-between w-full bg-emerald-950/40 border border-emerald-300/40 px-3 py-1.5 rounded-xl">
+            <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-100">
+              <span>⏳</span>
+              <span>Moderator • Qolgan vaqt: <strong id="live-mod-timer" class="font-mono">${formatRemainingTime(remMs)}</strong></span>
+            </div>
+            <button onclick="endTempModeratorEarly()" class="text-[10px] bg-white/20 text-white font-bold px-2 py-0.5 rounded-lg">
+              Chiqish
+            </button>
+          </div>
+        `;
+      } else {
+        const baseLabel = p.baseRole === 'speaker' ? 'Spiker / Mentor' : 'Ishtirokchi (Peer Learner)';
+        roleBanner = `
+          <div class="flex items-center justify-between w-full bg-black/15 px-3 py-1.5 rounded-xl">
+            <div class="flex items-center gap-1.5 text-xs text-indigo-100">
+              <span>Rol: <strong class="text-white">${escapeHtml(baseLabel)}</strong></span>
+            </div>
+            <button onclick="switchTab('profile')" class="text-[10px] bg-white/15 hover:bg-white/25 text-white font-semibold px-2 py-0.5 rounded-lg">
+              🔑 Maxsus kirish
+            </button>
+          </div>
+        `;
+      }
+
+      return `
+        <header class="bg-gradient-to-r from-indigo-700 via-indigo-600 to-emerald-600 text-white px-4 pt-4 pb-3.5 rounded-b-3xl shadow-md sticky top-0 z-30">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center font-extrabold text-lg border border-white/20">
+                EP
+              </div>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <h1 class="font-bold text-base tracking-tight">English Peers</h1>
+                  <span class="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-semibold">
+                    ${state.club.schedules.length} ta dars
+                  </span>
+                </div>
+                <p class="text-xs text-indigo-100 truncate max-w-[175px]">
+                  ${escapeHtml(p.fullName)} • ${escapeHtml(p.level)}
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <div class="bg-amber-500/25 border border-amber-300/40 px-2.5 py-1.5 rounded-xl flex items-center gap-1">
+                <span class="text-xs">🔥</span>
+                <span class="text-xs font-bold text-amber-100">${p.streak || 1}</span>
+              </div>
+              <div class="bg-white/15 border border-white/25 px-2.5 py-1.5 rounded-xl flex items-center gap-1">
+                <span class="text-xs">✨</span>
+                <span class="text-xs font-bold">${p.xp || 50} XP</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-2.5 border-t border-white/15">
+            ${roleBanner}
+          </div>
+        </header>
+      `;
+    }
+
+    function renderBottomNav() {
+      const tabs = [
+        { id: 'schedule', label: 'Jadval', icon: '📅' },
+        { id: 'pronunciation', label: 'Talaffuz', icon: '🎧' },
+        { id: 'lessons', label: 'Vazifa', icon: '📘' },
+        { id: 'club', label: 'Jamoa', icon: '👥' },
+        { id: 'profile', label: 'Profil', icon: '👤' }
+      ];
+      return `
+        <nav class="fixed bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-slate-200 px-1.5 py-2 flex items-center justify-around z-40">
+          ${tabs
+            .map((t) => {
+              const active = state.activeTab === t.id;
+              return `
+                <button
+                  onclick="switchTab('${t.id}')"
+                  class="flex flex-col items-center justify-center min-w-[58px] py-1.5 px-2 rounded-2xl transition-all relative ${
+                    active ? 'text-indigo-600 bg-indigo-50 font-bold' : 'text-slate-500 hover:text-slate-800 font-medium'
+                  }"
+                >
+                  <span class="text-base leading-none mb-1">${t.icon}</span>
+                  <span class="text-[11px]">${t.label}</span>
+                </button>
+              `;
+            })
+            .join('')}
+        </nav>
+      `;
+    }
+
+    function renderActiveTabContent() {
+      switch (state.activeTab) {
+        case 'schedule':
+          return renderScheduleTab();
+        case 'pronunciation':
+          return renderPronunciationTab();
+        case 'lessons':
+          return renderLessonsTab();
+        case 'club':
+          return renderClubTab();
+        case 'profile':
+          return renderProfileTab();
+        default:
+          return renderScheduleTab();
+      }
+    }
+
+    // =========================================================================
+    // 6. JADVALLAR VA RESURSLAR BO'LIMI (1–6 DARSLAR)
+    // =========================================================================
+    function renderScheduleTab() {
+      const modPowers = hasModeratorPowers();
+      const days = ['Barchasi', ...Array.from(new Set(state.club.schedules.map((s) => s.day)))];
+      const list =
+        state.scheduleDayFilter === 'Barchasi'
+          ? state.club.schedules
+          : state.club.schedules.filter((s) => s.day === state.scheduleDayFilter);
+
+      return `
+        <div class="space-y-4">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <h2 class="text-lg font-extrabold text-slate-900">Darslar Jadvali va Resurslar</h2>
+              <p class="text-xs text-slate-500">19-noyabrdan 28-noyabrgacha 6 ta dars, test va lug‘at</p>
+            </div>
+            ${
+              modPowers
+                ? `<button onclick="openNewScheduleModal()" class="bg-indigo-600 text-white px-3 py-2.5 rounded-xl text-xs font-bold shadow-sm shrink-0">+ Dars</button>`
+                : `<button onclick="switchTab('profile')" class="bg-slate-200/80 text-slate-600 px-3 py-2 rounded-xl text-[11px] font-bold shrink-0">🔒 Moderator</button>`
+            }
+          </div>
+
+          <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+            ${days
+              .map((d) => {
+                const active = state.scheduleDayFilter === d;
+                return `
+                  <button
+                    onclick="setScheduleDayFilter('${escapeHtml(d)}')"
+                    class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                      active ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200'
+                    }"
+                  >
+                    ${escapeHtml(d)}
+                  </button>
+                `;
+              })
+              .join('')}
+          </div>
+
+          <div class="space-y-3.5">
+            ${list
+              .map((s) => {
+                const isGoing = (s.rsvps || []).includes(state.profile.fullName);
+                const hasSpeaker = Boolean(s.speakerName);
+                const remOn = Boolean(state.reminders[s.id]);
+                const qCount = (s.questions || []).length;
+                const vocabCount = (s.resources?.vocab || []).length;
+                const tState = state.lessonTestStates[s.id];
+                let scoreBadge = '';
+                if (tState && tState.submitted) {
+                  const correctCnt = (s.questions || []).filter((q) => tState.answers[q.id] === q.correctIndex).length;
+                  const pct = qCount ? Math.round((correctCnt / qCount) * 100) : 0;
+                  scoreBadge = `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">Test: ${pct}%</span>`;
+                }
+
+                return `
+                  <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="flex flex-wrap items-center gap-1.5">
+                        <span class="bg-indigo-600 text-white text-xs font-extrabold px-2.5 py-1 rounded-lg">
+                          ${escapeHtml(s.day)} • ${escapeHtml(s.date)}
+                        </span>
+                        <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold px-2.5 py-1 rounded-lg">
+                          🕒 ${escapeHtml(s.time)}
+                        </span>
+                        ${scoreBadge}
+                      </div>
+                      <button
+                        onclick="toggleLessonReminder('${escapeHtml(s.id)}', '${escapeHtml(s.topic)}')"
+                        class="p-2 rounded-xl border text-xs ${
+                          remOn ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-slate-50 border-slate-200 text-slate-400'
+                        }"
+                        title="Eslatma"
+                      >
+                        ${remOn ? '🔔' : '🔕'}
+                      </button>
+                    </div>
+
+                    <div>
+                      <div class="flex items-center gap-2 mb-1">
+                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
+                          ${escapeHtml(s.level)}
+                        </span>
+                        <span class="text-[11px] text-slate-500">📍 ${escapeHtml(s.location)}</span>
+                      </div>
+                      <h3 class="font-extrabold text-slate-900 text-sm leading-snug">${escapeHtml(s.topic)}</h3>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl p-2.5 flex items-center justify-between border border-slate-100">
+                      <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold">
+                          🎙️
+                        </div>
+                        <div>
+                          <div class="text-[10px] uppercase font-bold text-slate-400">Dars Spikeri / Moderator</div>
+                          ${
+                            hasSpeaker
+                              ? `<div class="text-xs font-bold text-slate-800">${escapeHtml(s.speakerName)}</div>`
+                              : `<div class="text-xs font-medium text-amber-600">Bo‘sh (Spiker kerak)</div>`
+                          }
+                        </div>
+                      </div>
+                      ${
+                        !hasSpeaker
+                          ? `<button onclick="claimSpeaker('${escapeHtml(s.id)}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm">
+                              Spiker bo‘lish (+50 XP)
+                            </button>`
+                          : ''
+                      }
+                    </div>
+
+                    <!-- Resurslar, Tushuntirish, Test va Lug'atni ochish tugmalari -->
+                    <div class="grid grid-cols-2 gap-2">
+                      <button
+                        onclick="openResourcesModal('${escapeHtml(s.id)}', 'explanation')"
+                        class="py-2.5 px-3 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 text-left transition-all"
+                      >
+                        <div class="text-xs font-extrabold text-indigo-950">📖 Tushuntirish</div>
+                        <div class="text-[10px] text-indigo-700">To‘liq qoida va misollar</div>
+                      </button>
+
+                      <button
+                        onclick="openResourcesModal('${escapeHtml(s.id)}', 'test')"
+                        class="py-2.5 px-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-left transition-all"
+                      >
+                        <div class="text-xs font-extrabold text-emerald-950">📝 Mavzu Testi (${qCount})</div>
+                        <div class="text-[10px] text-emerald-700">Natija va % tahlili</div>
+                      </button>
+                    </div>
+
+                    <button
+                      onclick="openResourcesModal('${escapeHtml(s.id)}', 'vocab')"
+                      class="w-full py-2.5 px-3.5 rounded-2xl bg-amber-50/80 hover:bg-amber-100/80 border border-amber-200/80 flex items-center justify-between transition-all text-left"
+                    >
+                      <div>
+                        <div class="text-xs font-extrabold text-amber-950">✍️ Dars lug‘ati (Moderator qo‘lda to‘ldiradi)</div>
+                        <div class="text-[10px] text-amber-800">Kiritilgan so‘zlar: <strong>${vocabCount} ta</strong> • Ovozli talaffuz</div>
+                      </div>
+                      <span class="text-amber-700 font-bold text-sm">›</span>
+                    </button>
+
+                    <div class="flex items-center justify-between pt-0.5 gap-2">
+                      <button
+                        onclick="toggleRsvp('${escapeHtml(s.id)}')"
+                        class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                          isGoing ? 'bg-emerald-600 text-white shadow-sm' : 'bg-indigo-50 text-indigo-700'
+                        }"
+                      >
+                        <span>${isGoing ? 'Qatnashaman ✓' : 'Yozilish'}</span>
+                        <span class="bg-black/15 px-1.5 py-0.5 rounded-md text-[10px]">${(s.rsvps || []).length}</span>
+                      </button>
+
+                      ${
+                        modPowers
+                          ? `<button onclick="openAttendanceModal('${escapeHtml(s.id)}')" class="py-2.5 px-3.5 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-sm">
+                              Davomat ✅
+                            </button>`
+                          : `<span class="py-2.5 px-3 rounded-xl bg-slate-100 text-slate-500 text-[11px] font-semibold">🔒 Davomat</span>`
+                      }
+                    </div>
+                  </div>
+                `;
+              })
+              .join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 7. RESURSLAR MODALI: TUSHUNTIRISH + 30/50 SAVOLLIK TEST + TAHLIL + LUG'AT
+    // =========================================================================
+    function openResourcesModal(schedId, tab = 'explanation') {
+      state.activeResourceTab = tab;
+      const sched = state.club.schedules.find((s) => s.id === schedId);
+      if (!sched) return;
+      const res = sched.resources || { fullExplanation: '', vocab: [], socialLinks: [] };
+      const questions = sched.questions || [];
+      const tState = getLessonTestState(sched.id);
+      const canEdit = hasModeratorPowers() || sched.speakerName === state.profile?.fullName;
+
+      const root = document.getElementById('modal-root');
+      root.innerHTML = `
+        <div class="fixed inset-0 z-50 bg-slate-900/65 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div class="bg-slate-50 w-full max-w-md rounded-t-3xl sm:rounded-3xl h-[94vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-indigo-700 to-emerald-600 text-white p-4 flex items-start justify-between gap-2 shrink-0">
+              <div>
+                <div class="text-[11px] text-indigo-100 font-bold">${escapeHtml(sched.day)}, ${escapeHtml(sched.date)} • ${escapeHtml(sched.time)}</div>
+                <h3 class="font-extrabold text-sm leading-snug mt-0.5">${escapeHtml(sched.topic)}</h3>
+              </div>
+              <button onclick="closeModal()" class="p-2 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-bold shrink-0">✕</button>
+            </div>
+
+            <!-- Ichki bo'limlar: Tushuntirish | Test (30/50) | Lug'at | Havola -->
+            <div class="bg-white border-b border-slate-200 px-3 py-2 grid grid-cols-4 gap-1 shrink-0">
+              ${[
+                { id: 'explanation', label: '📖 Dars' },
+                { id: 'test', label: `📝 Test (${questions.length})` },
+                { id: 'vocab', label: `✍️ Lug‘at (${(res.vocab || []).length})` },
+                { id: 'links', label: '🔗 Havola' }
+              ]
+                .map(
+                  (tb) => `<button
+                    onclick="openResourcesModal('${escapeHtml(sched.id)}', '${tb.id}')"
+                    class="py-2 px-1 rounded-xl text-[11px] font-bold transition-all ${
+                      state.activeResourceTab === tb.id ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600'
+                    }"
+                  >${tb.label}</button>`
+                )
+                .join('')}
+            </div>
+
+            <!-- Body -->
+            <div id="resource-modal-body" class="flex-1 overflow-y-auto p-4 space-y-4">
+              ${renderResourceModalBody(sched, res, questions, tState, canEdit)}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderResourceModalBody(sched, res, questions, tState, canEdit) {
+      if (state.activeResourceTab === 'explanation') {
+        return `
+          <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="font-extrabold text-sm text-slate-900">Mavzuni to‘liq tushuntirish</span>
+              <button onclick="speakEnglish(document.getElementById('expl-text-box').innerText, state.ttsAccent, 0.95)" class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-bold">
+                🔊 O‘qish
+              </button>
+            </div>
+            <div id="expl-text-box" class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-xs text-slate-800 whitespace-pre-line leading-relaxed">
+              ${escapeHtml(res.fullExplanation)}
+            </div>
+
+            ${
+              canEdit
+                ? `<div class="pt-2 space-y-2 border-t border-slate-100">
+                    <label class="block text-[11px] font-bold text-indigo-700">Qo‘shimcha izoh yoki misol qo‘shish:</label>
+                    <textarea id="res-append-note" rows="2" placeholder="Qo‘shimcha tushuntirishni yozing..." class="w-full p-2.5 rounded-xl border border-slate-200 text-xs"></textarea>
+                    <button onclick="appendLessonNote('${escapeHtml(sched.id)}')" class="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold">
+                      + Tushuntirishga qo‘shish
+                    </button>
+                  </div>`
+                : ''
+            }
+          </div>
+
+          <!-- Dars tugagach testga o'tish chaqiruvi -->
+          <div class="bg-gradient-to-r from-indigo-600 to-emerald-600 text-white rounded-3xl p-4 shadow-md space-y-2.5">
+            <div class="text-xs font-extrabold">Mavzu tushunarli bo‘ldimi? Endi bilimingizni tekshiring!</div>
+            <p class="text-[11px] text-indigo-100">
+              Pastda ushbu mavzu bo‘yicha <strong>${questions.length} ta test savoli</strong> va natijani tahlil qilish (o‘zlashtirish foizi, tushuntirish va maslahatlar) tayyorlangan.
+            </p>
+            <button onclick="openResourcesModal('${escapeHtml(sched.id)}', 'test')" class="w-full py-3 rounded-2xl bg-white text-indigo-950 font-extrabold text-xs shadow">
+              📝 ${questions.length} talik testni boshlash →
+            </button>
+          </div>
+        `;
+      }
+
+      if (state.activeResourceTab === 'test') {
+        const answeredCount = Object.keys(tState.answers || {}).length;
+        if (!tState.submitted) {
+          return `
+            <div class="bg-white rounded-3xl p-3.5 border border-slate-200/80 flex items-center justify-between gap-2 sticky top-0 z-10 shadow-sm">
+              <div>
+                <div class="text-xs font-extrabold text-slate-900">Mavzu Testi: ${questions.length} ta savol</div>
+                <div class="text-[11px] text-slate-500">Javob berilgan: <strong>${answeredCount} / ${questions.length}</strong></div>
+              </div>
+              <button onclick="submitLessonTest('${escapeHtml(sched.id)}')" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow">
+                Yakunlash va Tahlil
+              </button>
+            </div>
+
+            <div class="space-y-3">
+              ${questions
+                .map((q, idx) => {
+                  const picked = tState.answers[q.id];
+                  return `
+                    <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-sm space-y-2.5">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
+                          Savol ${idx + 1} / ${questions.length}
+                        </span>
+                        <span class="text-[10px] font-semibold text-slate-400">${escapeHtml(q.skill)}</span>
+                      </div>
+                      <p class="text-xs font-bold text-slate-900 leading-snug">${escapeHtml(q.question)}</p>
+                      <div class="space-y-1.5">
+                        ${q.options
+                          .map((opt, oIdx) => {
+                            const selected = picked === oIdx;
+                            return `
+                              <button
+                                type="button"
+                                onclick="pickLessonTestOption('${escapeHtml(sched.id)}', ${q.id}, ${oIdx})"
+                                class="w-full text-left px-3 py-2.5 rounded-xl border text-xs transition-all ${
+                                  selected
+                                    ? 'bg-indigo-600 border-indigo-600 text-white font-bold'
+                                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                                }"
+                              >
+                                ${String.fromCharCode(65 + oIdx)}) ${escapeHtml(opt)}
+                              </button>
+                            `;
+                          })
+                          .join('')}
+                      </div>
+                    </div>
+                  `;
+                })
+                .join('')}
+            </div>
+
+            <button onclick="submitLessonTest('${escapeHtml(sched.id)}')" class="w-full py-3.5 rounded-2xl bg-emerald-600 text-white font-extrabold text-xs shadow-lg">
+              📊 Testni yakunlash va natijani tahlil qilish (${answeredCount}/${questions.length})
+            </button>
+          `;
+        }
+
+        // Test topshirilgach: O'zlashtirish foizi, Bo'limlar tahlili, Tavsiyalar va Savollar tahlili
+        return renderTestAnalysis(sched, questions, tState);
+      }
+
+      if (state.activeResourceTab === 'vocab') {
+        const vocabItems = res.vocab || [];
+        return `
+          ${
+            canEdit
+              ? `<form onsubmit="addLessonManualVocab(event, '${escapeHtml(sched.id)}')" class="bg-white rounded-3xl p-4 border border-amber-200 shadow-sm space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <h4 class="font-extrabold text-xs text-slate-900">✍️ Dars lug‘atini qo‘lda yozib to‘ldirish</h4>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Moderator</span>
+                  </div>
+                  <p class="text-[11px] text-slate-500">Dars davomida ishlatilgan so‘z yoki iborani qo‘lda yozib kiriting:</p>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input id="lv-word" required placeholder="Inglizcha so‘z / ibora *" class="px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold" />
+                    <input id="lv-uz" required placeholder="O‘zbekcha tarjimasi *" class="px-3 py-2.5 rounded-xl border border-slate-200 text-xs" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input id="lv-trans" placeholder="Transkripsiya (masalan: /wɜːd/)" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono" />
+                    <input id="lv-ex" placeholder="Namuna gap (ixtiyoriy)" class="px-3 py-2 rounded-xl border border-slate-200 text-xs" />
+                  </div>
+                  <button type="submit" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs shadow">
+                    + Lug‘at ro‘yxatiga qo‘shish
+                  </button>
+                </form>`
+              : `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-900">
+                  Dars lug‘atini dars moderatori / spikeri qo‘lda yozib to‘ldiradi. Pastda darsda ishlatilgan so‘zlarni ko‘rib, ovozli tinglashingiz mumkin.
+                </div>`
+          }
+
+          <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-sm space-y-2.5">
+            <h4 class="font-extrabold text-sm text-slate-900">Dars bo‘yicha ishlatilgan lug‘at (${vocabItems.length} ta)</h4>
+            ${
+              vocabItems.length
+                ? vocabItems
+                    .map(
+                      (v, i) => `
+                  <div class="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-start justify-between gap-2">
+                    <div class="space-y-0.5">
+                      <div class="text-xs font-extrabold text-slate-900">
+                        ${i + 1}. ${escapeHtml(v.word)}
+                        ${v.trans ? `<span class="text-[11px] font-mono font-normal text-indigo-600 ml-1">${escapeHtml(v.trans)}</span>` : ''}
+                      </div>
+                      <div class="text-xs font-semibold text-emerald-700">${escapeHtml(v.uz)}</div>
+                      ${v.example ? `<div class="text-[11px] italic text-slate-500">"${escapeHtml(v.example)}"</div>` : ''}
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <button onclick="speakEnglish('${escapeHtml(v.word)}', state.ttsAccent, 0.9)" class="px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-indigo-600">🔊</button>
+                      ${
+                        canEdit
+                          ? `<button onclick="deleteLessonManualVocab('${escapeHtml(sched.id)}', '${escapeHtml(v.id)}')" class="px-2 py-1.5 rounded-xl bg-rose-50 text-rose-600 text-xs font-bold" title="O‘chirish">🗑️</button>`
+                          : ''
+                      }
+                    </div>
+                  </div>
+                `
+                    )
+                    .join('')
+                : `<p class="text-xs text-slate-400 text-center py-4">Hozircha bu dars lug‘atiga so‘z kiritilmagan.</p>`
+            }
+          </div>
+        `;
+      }
+
+      // 'links'
+      const links = res.socialLinks || [];
+      return `
+        <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-sm space-y-3">
+          <h4 class="font-extrabold text-sm text-slate-900">Ijtimoiy tarmoq va qo‘shimcha havolalar</h4>
+          <div class="space-y-2">
+            ${
+              links.length
+                ? links
+                    .map(
+                      (lnk) => `<a href="${escapeHtml(lnk.url)}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-indigo-50 border border-slate-200/80">
+                        <div class="space-y-0.5 pr-2">
+                          <span class="inline-block text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800">${escapeHtml(lnk.platform)}</span>
+                          <div class="text-xs font-bold text-slate-800">${escapeHtml(lnk.title)}</div>
+                        </div>
+                        <span class="text-indigo-600 font-bold text-xs">↗</span>
+                      </a>`
+                    )
+                    .join('')
+                : `<p class="text-xs text-slate-400">Hozircha havola qo‘shilmagan.</p>`
+            }
+          </div>
+
+          ${
+            canEdit
+              ? `<form onsubmit="addLessonSocialLink(event, '${escapeHtml(sched.id)}')" class="pt-3 border-t border-slate-100 space-y-2">
+                  <div class="text-[11px] font-bold text-emerald-700">+ Yangi havola qo‘shish:</div>
+                  <div class="grid grid-cols-3 gap-1.5">
+                    <select id="lnk-platform" class="px-2 py-2 rounded-xl border bg-white text-xs font-bold">
+                      <option value="Telegram">Telegram</option>
+                      <option value="YouTube">YouTube</option>
+                      <option value="Instagram">Instagram</option>
+                      <option value="Havola">Boshqa</option>
+                    </select>
+                    <input id="lnk-title" required placeholder="Nomi *" class="col-span-2 px-3 py-2 rounded-xl border text-xs" />
+                  </div>
+                  <input id="lnk-url" type="url" required placeholder="https://t.me/..." class="w-full px-3 py-2 rounded-xl border text-xs" />
+                  <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">Havolani saqlash</button>
+                </form>`
+              : ''
+          }
+        </div>
+      `;
+    }
+
+    function renderTestAnalysis(sched, questions, tState) {
+      const total = questions.length;
+      let correctCount = 0;
+      const skillStats = {}; // { [skill]: { total: 0, correct: 0, advice: '' } }
+
+      questions.forEach((q) => {
+        if (!skillStats[q.skill]) {
+          skillStats[q.skill] = { total: 0, correct: 0, advice: q.advice };
+        }
+        skillStats[q.skill].total += 1;
+        if (tState.answers[q.id] === q.correctIndex) {
+          correctCount += 1;
+          skillStats[q.skill].correct += 1;
+        }
+      });
+
+      const pct = total ? Math.round((correctCount / total) * 100) : 0;
+      let levelTitle = 'Boshlang‘ich bosqich';
+      let generalAdvice = 'Mavzu tushuntirishini yana bir bor o‘qib chiqing va har bir qoidani 3 tadan misol bilan mustahkamlang.';
+      if (pct >= 85) {
+        levelTitle = 'A’lo darajada o‘zlashtirildi! 🌟';
+        generalAdvice = 'Mavzuni juda puxta o‘zlashtirdingiz! Endi o‘rgangan qoidalaringizni og‘zaki nutqda va yangi gaplar tuzishda faol ishlating.';
+      } else if (pct >= 65) {
+        levelTitle = 'Yaxshi o‘zlashtirildi 👍';
+        generalAdvice = 'Asosiy qoidalarni tushungansiz. Pastdagi past foizli bo‘limlarga alohida e’tibor qarating va xato qilingan savollar izohini o‘qing.';
+      } else if (pct >= 40) {
+        levelTitle = 'O‘rtacha — mustahkamlash zarur ⚡';
+        generalAdvice = 'Ayrim jihatlar chalkashmoqda. Har bir xato savolning izohini o‘qib, dars lug‘atidagi so‘zlarni qayta takrorlang.';
+      }
+
+      const weakSkills = Object.entries(skillStats)
+        .map(([name, st]) => ({ name, pct: Math.round((st.correct / st.total) * 100), ...st }))
+        .sort((a, b) => a.pct - b.pct);
+
+      const filteredQuestions = questions.filter((q) => {
+        const isRight = tState.answers[q.id] === q.correctIndex;
+        if (tState.reviewFilter === 'wrong') return !isRight;
+        if (tState.reviewFilter === 'right') return isRight;
+        return true;
+      });
+
+      return `
+        <!-- Umumiy o'zlashtirish foizi -->
+        <div class="bg-gradient-to-br from-indigo-700 via-indigo-600 to-emerald-600 text-white rounded-3xl p-4 shadow-md space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold uppercase tracking-wide text-indigo-100">Natija va O‘zlashtirish Tahlili</span>
+            <span class="text-xs font-bold bg-white/20 px-2.5 py-0.5 rounded-full">${correctCount} / ${total} to‘g‘ri</span>
+          </div>
+
+          <div class="flex items-end justify-between">
+            <div>
+              <div class="text-3xl font-black">${pct}%</div>
+              <div class="text-xs font-bold text-amber-200 mt-0.5">${escapeHtml(levelTitle)}</div>
+            </div>
+            <button onclick="retakeLessonTest('${escapeHtml(sched.id)}')" class="px-3.5 py-2 rounded-xl bg-white text-indigo-950 font-extrabold text-xs shadow">
+              ↻ Qayta ishlash
+            </button>
+          </div>
+
+          <div class="w-full h-2.5 bg-black/20 rounded-full overflow-hidden">
+            <div class="h-full bg-amber-300 rounded-full transition-all" style="width: ${pct}%"></div>
+          </div>
+
+          <div class="bg-black/15 p-3 rounded-2xl text-xs text-indigo-50 leading-relaxed">
+            <strong>💡 Umumiy maslahat:</strong> ${escapeHtml(generalAdvice)}
+          </div>
+        </div>
+
+        <!-- Mavzu ichidagi bo'limlar bo'yicha o'zlashtirish foizi -->
+        <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-sm space-y-3">
+          <h4 class="font-extrabold text-sm text-slate-900">📈 Bo‘limlar kesimida o‘zlashtirish foizi</h4>
+          <div class="space-y-2.5">
+            ${weakSkills
+              .map((sk) => {
+                const barColor = sk.pct >= 80 ? 'bg-emerald-500' : sk.pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
+                return `
+                  <div class="p-2.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-1.5">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="font-bold text-slate-800">${escapeHtml(sk.name)}</span>
+                      <span class="font-extrabold text-slate-900">${sk.pct}% (${sk.correct}/${sk.total})</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div class="h-full ${barColor} rounded-full" style="width: ${sk.pct}%"></div>
+                    </div>
+                    ${
+                      sk.pct < 80
+                        ? `<p class="text-[11px] text-slate-600"><strong>Tavsiya:</strong> ${escapeHtml(sk.advice)}</p>`
+                        : ''
+                    }
+                  </div>
+                `;
+              })
+              .join('')}
+          </div>
+        </div>
+
+        <!-- Savollar bo'yicha batafsil tushuntirish -->
+        <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-sm space-y-3">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <h4 class="font-extrabold text-sm text-slate-900">🔍 Savollar tahlili va tushuntirish</h4>
+            <div class="flex gap-1 bg-slate-100 p-1 rounded-xl">
+              ${[
+                { id: 'all', label: `Barchasi (${total})` },
+                { id: 'wrong', label: `Xatolar (${total - correctCount})` },
+                { id: 'right', label: `To‘g‘ri (${correctCount})` }
+              ]
+                .map(
+                  (f) => `<button
+                    onclick="setTestReviewFilter('${escapeHtml(sched.id)}', '${f.id}')"
+                    class="px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                      tState.reviewFilter === f.id ? 'bg-indigo-600 text-white' : 'text-slate-600'
+                    }"
+                  >${f.label}</button>`
+                )
+                .join('')}
+            </div>
+          </div>
+
+          <div class="space-y-2.5">
+            ${
+              filteredQuestions.length
+                ? filteredQuestions
+                    .map((q) => {
+                      const picked = tState.answers[q.id];
+                      const isRight = picked === q.correctIndex;
+                      return `
+                        <div class="p-3 rounded-2xl border ${
+                          isRight ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'
+                        } space-y-1.5">
+                          <div class="flex items-center justify-between text-[10px] font-bold">
+                            <span class="text-slate-500">#${q.id} • ${escapeHtml(q.skill)}</span>
+                            <span class="${isRight ? 'text-emerald-700' : 'text-rose-700'}">${isRight ? '✓ To‘g‘ri' : '✕ Xato'}</span>
+                          </div>
+                          <div class="text-xs font-bold text-slate-900">${escapeHtml(q.question)}</div>
+                          <div class="text-[11px] text-slate-700">
+                            Sizning javobingiz: <strong>${picked !== undefined ? escapeHtml(q.options[picked]) : 'Belgilanmagan'}</strong>
+                          </div>
+                          ${
+                            !isRight
+                              ? `<div class="text-[11px] font-bold text-emerald-800">To‘g‘ri javob: ${escapeHtml(q.options[q.correctIndex])}</div>`
+                              : ''
+                          }
+                          <div class="text-[11px] text-slate-700 bg-white/80 p-2 rounded-xl border border-slate-100">
+                            <strong>Tushuntirish:</strong> ${escapeHtml(q.explanation)}
+                          </div>
+                        </div>
+                      `;
+                    })
+                    .join('')
+                : `<p class="text-xs text-slate-400 text-center py-3">Bu filtr bo‘yicha savollar topilmadi.</p>`
+            }
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 8. BO'LIM 2: TALAFFUZ STUDIYASI
+    // =========================================================================
+    function renderPronunciationTab() {
+      const studioTabs = [
+        { id: 'tts', label: '🔊 Ovozli matn' },
+        { id: 'pairs', label: '👂 Minimal Pairs' },
+        { id: 'twisters', label: '👅 Tez aytish' },
+        { id: 'shadowing', label: '🗣️ Shadowing' },
+        { id: 'mic', label: '🎙️ Jonli tekshiruv' }
+      ];
+      const words = (state.ttsText || '').trim().split(/\s+/).filter(Boolean);
+
+      return `
+        <div class="space-y-4">
+          <div>
+            <h2 class="text-lg font-extrabold text-slate-900">Talaffuz Studiyasi 🎧</h2>
+            <p class="text-xs text-slate-500">Ovozli talaffuz va tovushlarni farqlash mashqlari</p>
+          </div>
+
+          <div class="bg-white rounded-2xl p-3 border border-slate-200/80 flex items-center justify-between gap-2">
+            <div class="flex gap-1 bg-slate-100 p-1 rounded-xl">
+              <button onclick="setTtsAccent('en-US')" class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold ${state.ttsAccent === 'en-US' ? 'bg-indigo-600 text-white' : 'text-slate-600'}">🇺🇸 US</button>
+              <button onclick="setTtsAccent('en-GB')" class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold ${state.ttsAccent === 'en-GB' ? 'bg-indigo-600 text-white' : 'text-slate-600'}">🇬🇧 UK</button>
+            </div>
+
+            <div class="flex gap-1 bg-slate-100 p-1 rounded-xl">
+              ${[0.7, 1.0, 1.2]
+                .map(
+                  (r) => `<button onclick="setTtsRate(${r})" class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold ${state.ttsRate === r ? 'bg-emerald-600 text-white' : 'text-slate-600'}">${r}x</button>`
+                )
+                .join('')}
+            </div>
+          </div>
+
+          <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
+            ${studioTabs
+              .map(
+                (t) => `<button onclick="setStudioTab('${t.id}')" class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold ${state.studioTab === t.id ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200'}">${t.label}</button>`
+              )
+              .join('')}
+          </div>
+
+          ${
+            state.studioTab === 'tts'
+              ? `<div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold text-slate-900">Inglizcha matnni ovozli tinglash:</span>
+                    <button onclick="clearTtsText()" class="text-[11px] text-slate-400 hover:text-rose-600 font-semibold">Tozalash</button>
+                  </div>
+                  <textarea id="tts-input" rows="3" oninput="updateTtsTextValue(this.value)" class="w-full p-3.5 rounded-2xl border border-slate-200 text-sm">${escapeHtml(state.ttsText)}</textarea>
+                  <div class="flex gap-2">
+                    <button onclick="playCurrentTts(state.ttsRate)" class="flex-1 py-3 rounded-2xl bg-indigo-600 text-white font-bold text-xs shadow-md">🔊 O‘qish (${state.ttsRate}x)</button>
+                    <button onclick="playCurrentTts(0.65)" class="px-4 py-3 rounded-2xl bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs">🐢 Sekin</button>
+                  </div>
+                  ${
+                    words.length
+                      ? `<div class="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
+                          ${words
+                            .slice(0, 25)
+                            .map((w) => `<button onclick="speakEnglish('${escapeHtml(w.replace(/[.,!?"]/g, ''))}', state.ttsAccent, 0.85)" class="px-2.5 py-1 rounded-lg bg-slate-100 text-xs font-semibold text-slate-700">${escapeHtml(w)}</button>`)
+                            .join('')}
+                        </div>`
+                      : ''
+                  }
+                </div>
+                <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
+                  <h3 class="font-extrabold text-sm text-slate-900">🤫 O‘qilmaydigan harflar</h3>
+                  <div class="grid grid-cols-2 gap-2">
+                    ${SILENT_LETTERS.map(
+                      (item) => `<button onclick="speakEnglish('${escapeHtml(item.word)}', state.ttsAccent, 0.85)" class="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-0.5">
+                        <div class="font-extrabold text-xs text-slate-900">${escapeHtml(item.word)} 🔊</div>
+                        <div class="text-[11px] font-mono text-indigo-600">${escapeHtml(item.ipa)}</div>
+                        <div class="text-[10px] text-rose-600 font-semibold">${escapeHtml(item.silent)}</div>
+                        <div class="text-[10px] text-slate-500">${escapeHtml(item.uz)}</div>
+                      </button>`
+                    ).join('')}
+                  </div>
+                </div>`
+              : ''
+          }
+
+          ${
+            state.studioTab === 'pairs'
+              ? `<div class="space-y-3">
+                  ${MINIMAL_PAIRS.map((p) => {
+                    const isTarget = state.earQuizTarget && state.earQuizTarget.pairId === p.id;
+                    const isFb = state.earQuizFeedback && state.earQuizFeedback.pairId === p.id;
+                    return `<div class="bg-white rounded-3xl p-4 border border-slate-200 space-y-3">
+                      <div class="text-[11px] font-extrabold text-indigo-600">${escapeHtml(p.pairTitle)}</div>
+                      <div class="grid grid-cols-2 gap-2">
+                        <button onclick="speakEnglish('${escapeHtml(p.wordA)}', state.ttsAccent, 0.85)" class="p-3 rounded-2xl bg-slate-50 border text-center">
+                          <div class="font-extrabold text-sm">${escapeHtml(p.wordA)} 🔊</div>
+                          <div class="text-xs font-mono text-indigo-600">${escapeHtml(p.ipaA)}</div>
+                          <div class="text-[11px] text-slate-500">${escapeHtml(p.uzA)}</div>
+                        </button>
+                        <button onclick="speakEnglish('${escapeHtml(p.wordB)}', state.ttsAccent, 0.85)" class="p-3 rounded-2xl bg-slate-50 border text-center">
+                          <div class="font-extrabold text-sm">${escapeHtml(p.wordB)} 🔊</div>
+                          <div class="text-xs font-mono text-emerald-600">${escapeHtml(p.ipaB)}</div>
+                          <div class="text-[11px] text-slate-500">${escapeHtml(p.uzB)}</div>
+                        </button>
+                      </div>
+                      <p class="text-xs text-slate-600 bg-amber-50 p-2.5 rounded-xl">${escapeHtml(p.tip)}</p>
+                      <div class="flex items-center justify-between pt-1">
+                        <span class="text-[11px] font-bold">👂 Quloq testi:</span>
+                        <button onclick="startEarQuiz('${escapeHtml(p.id)}')" class="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-[11px] font-bold">🔊 Tinglash</button>
+                      </div>
+                      ${
+                        isTarget
+                          ? `<div class="grid grid-cols-2 gap-2">
+                              <button onclick="answerEarQuiz('${escapeHtml(p.id)}', '${escapeHtml(p.wordA)}')" class="py-2 rounded-xl bg-indigo-100 text-indigo-900 font-bold text-xs">${escapeHtml(p.wordA)}</button>
+                              <button onclick="answerEarQuiz('${escapeHtml(p.id)}', '${escapeHtml(p.wordB)}')" class="py-2 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs">${escapeHtml(p.wordB)}</button>
+                            </div>`
+                          : ''
+                      }
+                      ${isFb ? `<div class="p-2 rounded-xl text-xs font-semibold ${state.earQuizFeedback.correct ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}">${escapeHtml(state.earQuizFeedback.msg)}</div>` : ''}
+                    </div>`;
+                  }).join('')}
+                </div>`
+              : ''
+          }
+
+          ${
+            state.studioTab === 'twisters'
+              ? `<div class="space-y-3">
+                  ${TONGUE_TWISTERS.map(
+                    (tt) => `<div class="bg-white rounded-3xl p-4 border border-slate-200 space-y-2">
+                      <div class="text-[10px] font-extrabold text-indigo-700">${escapeHtml(tt.level)} • ${escapeHtml(tt.focus)}</div>
+                      <p class="font-extrabold text-sm text-slate-900">"${escapeHtml(tt.text)}"</p>
+                      <p class="text-xs text-slate-500">${escapeHtml(tt.uz)}</p>
+                      <div class="grid grid-cols-2 gap-2">
+                        <button onclick="speakEnglish('${escapeHtml(tt.text)}', state.ttsAccent, 0.65)" class="py-2.5 rounded-xl bg-amber-50 text-amber-800 border text-xs font-bold">🐢 Sekin</button>
+                        <button onclick="practiceTwisterNormal('${escapeHtml(tt.text)}')" class="py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold">🔊 Normal (+5 XP)</button>
+                      </div>
+                    </div>`
+                  ).join('')}
+                </div>`
+              : ''
+          }
+
+          ${
+            state.studioTab === 'shadowing'
+              ? `<div class="space-y-3">
+                  ${SHADOWING_EXERCISES.map(
+                    (sh) => `<div class="bg-white rounded-3xl p-4 border border-slate-200 space-y-2">
+                      <div class="bg-slate-900 text-white p-3 rounded-2xl font-mono text-xs">${escapeHtml(sh.stressedDisplay)}</div>
+                      <p class="text-xs font-semibold text-slate-700">${escapeHtml(sh.uz)}</p>
+                      <p class="text-[11px] text-indigo-700 bg-indigo-50 p-2 rounded-xl">${escapeHtml(sh.note)}</p>
+                      <button onclick="practiceShadowing('${escapeHtml(sh.plainText)}')" class="w-full py-2.5 rounded-2xl bg-indigo-600 text-white text-xs font-bold">▶️ Tinglash (+10 XP)</button>
+                    </div>`
+                  ).join('')}
+                </div>`
+              : ''
+          }
+
+          ${
+            state.studioTab === 'mic'
+              ? `<div class="bg-white rounded-3xl p-4 border border-slate-200 space-y-3">
+                  <h3 class="font-extrabold text-sm">🎙️ Jonli Talaffuz Tekshiruvi</h3>
+                  <textarea rows="2" oninput="state.micTargetPhrase = this.value" class="w-full p-3 rounded-2xl border text-sm font-bold">${escapeHtml(state.micTargetPhrase)}</textarea>
+                  <div class="flex gap-2">
+                    <button onclick="speakEnglish(state.micTargetPhrase, state.ttsAccent, 0.9)" class="flex-1 py-3 rounded-2xl bg-slate-100 text-xs font-bold">🔊 Namuna</button>
+                    <button onclick="runMicCheck()" class="flex-1 py-3 rounded-2xl bg-emerald-600 text-white text-xs font-bold">🎙️ Gapiring</button>
+                  </div>
+                  ${state.micError ? `<div class="p-3 rounded-2xl bg-rose-50 text-xs text-rose-700">${escapeHtml(state.micError)}</div>` : ''}
+                  ${
+                    state.spokenResult
+                      ? `<div class="p-3 rounded-2xl bg-slate-50 border text-xs space-y-1">
+                          <div>Aniqlik: <strong>${state.spokenResult.accuracy}%</strong></div>
+                          <div>Siz aytdingiz: "${escapeHtml(state.spokenResult.transcript)}"</div>
+                        </div>`
+                      : ''
+                  }
+                </div>`
+              : ''
+          }
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 9. BO'LIM 3: VAZIFALAR VA TESTLAR MARKAZI
+    // =========================================================================
+    function renderLessonsTab() {
+      return `
+        <div class="space-y-4">
+          <div class="bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200/80 grid grid-cols-2 gap-1">
+            <button onclick="setLessonsTab('homework')" class="py-2.5 px-2 rounded-xl text-xs font-bold ${state.lessonsTab === 'homework' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600'}">
+              Uy vazifasi ✍️
+            </button>
+            <button onclick="setLessonsTab('tests_hub')" class="py-2.5 px-2 rounded-xl text-xs font-bold ${state.lessonsTab === 'tests_hub' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600'}">
+              Dars Testlari 📝
+            </button>
+          </div>
+
+          ${
+            state.lessonsTab === 'homework'
+              ? `<div class="space-y-4">
+                  <form id="homework-form" onsubmit="submitHomeworkForm(event)" class="bg-white rounded-3xl p-4 border border-slate-200/80 space-y-3">
+                    <h3 class="font-extrabold text-sm">Uy vazifasini topshirish (+25 XP)</h3>
+                    <select id="hw-lesson" class="w-full px-3 py-2.5 rounded-xl border text-xs bg-white">
+                      ${state.club.schedules.map((s) => `<option value="${escapeHtml(s.topic)}">${escapeHtml(s.topic)}</option>`).join('')}
+                    </select>
+                    <textarea id="hw-text" required rows="3" placeholder="Dars mavzusi bo‘yicha misol gaplaringizni yozing..." class="w-full p-3 rounded-2xl border text-xs"></textarea>
+                    <button type="submit" class="w-full py-3 rounded-2xl bg-indigo-600 text-white font-bold text-xs">Vazifani yuborish</button>
+                  </form>
+
+                  ${state.club.submissions
+                    .map(
+                      (sub) => `<div class="bg-white rounded-3xl p-4 border border-slate-200/80 space-y-2">
+                        <div class="flex justify-between items-center">
+                          <span class="font-bold text-xs">${escapeHtml(sub.userName)}</span>
+                          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">${sub.status === 'Reviewed' ? 'Tekshirilgan ✅' : 'Kutilmoqda'}</span>
+                        </div>
+                        <div class="text-[11px] font-semibold text-indigo-600">${escapeHtml(sub.lessonTitle)}</div>
+                        <p class="text-xs bg-slate-50 p-3 rounded-2xl whitespace-pre-line">${escapeHtml(sub.answerText)}</p>
+                        ${
+                          sub.mentorComment
+                            ? `<div class="bg-emerald-50 p-2.5 rounded-xl text-xs text-emerald-900"><strong>Izoh:</strong> ${escapeHtml(sub.mentorComment)}</div>`
+                            : `<div class="flex gap-2">
+                                <input id="rev-input-${escapeHtml(sub.id)}" placeholder="Tengdosh sifatida tekshiring (+15 XP)..." class="flex-1 px-3 py-2 rounded-xl border text-xs" />
+                                <button onclick="reviewHomeworkItem('${escapeHtml(sub.id)}')" class="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Baholash</button>
+                              </div>`
+                        }
+                      </div>`
+                    )
+                    .join('')}
+                </div>`
+              : `<div class="space-y-3">
+                  <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 text-xs text-indigo-950">
+                    Har bir dars ostida <strong>30 ta test savoli</strong> (6-mavzuda <strong>50 ta test savoli</strong>) hamda natija tahlili mavjud. Istalgan darsni tanlang:
+                  </div>
+                  ${state.club.schedules
+                    .map((s) => {
+                      const qCnt = (s.questions || []).length;
+                      const ts = state.lessonTestStates[s.id];
+                      let statusText = `${qCnt} ta savol • Boshlanmagan`;
+                      if (ts && ts.submitted) {
+                        const right = (s.questions || []).filter((q) => ts.answers[q.id] === q.correctIndex).length;
+                        statusText = `O‘zlashtirish: ${Math.round((right / Math.max(qCnt, 1)) * 100)}% (${right}/${qCnt})`;
+                      }
+                      return `<div class="bg-white rounded-3xl p-4 border border-slate-200 flex items-center justify-between gap-3">
+                        <div>
+                          <div class="text-[10px] font-extrabold text-indigo-600">${escapeHtml(s.day)} • ${escapeHtml(s.date)}</div>
+                          <div class="text-xs font-extrabold text-slate-900 mt-0.5">${escapeHtml(s.topic)}</div>
+                          <div class="text-[11px] text-emerald-700 font-semibold mt-1">${escapeHtml(statusText)}</div>
+                        </div>
+                        <button onclick="openResourcesModal('${escapeHtml(s.id)}', 'test')" class="px-3.5 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold shrink-0">
+                          Testga kirish →
+                        </button>
+                      </div>`;
+                    })
+                    .join('')}
+                </div>`
+          }
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 10. BO'LIM 4: JAMOA HAYOTI
+    // =========================================================================
+    function renderClubTab() {
+      const modPowers = hasModeratorPowers();
+      const card = state.club.vocabList[state.vocabIndex % Math.max(state.club.vocabList.length, 1)];
+
+      return `
+        <div class="space-y-4">
+          <div class="bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200/80 grid grid-cols-4 gap-1">
+            ${[
+              { id: 'announcements', label: 'E’lon 📢' },
+              { id: 'review', label: 'Fikr 🌟' },
+              { id: 'qa', label: 'Savol ❓' },
+              { id: 'vocab', label: 'Lug‘at 📖' }
+            ]
+              .map(
+                (t) => `<button onclick="setClubTab('${t.id}')" class="py-2 px-1 rounded-xl text-[11px] font-bold ${state.clubTab === t.id ? 'bg-indigo-600 text-white' : 'text-slate-600'}">${t.label}</button>`
+              )
+              .join('')}
+          </div>
+
+          ${
+            state.clubTab === 'announcements'
+              ? `<div class="space-y-3">
+                  ${
+                    modPowers
+                      ? `<form onsubmit="submitAnnouncement(event)" class="bg-white p-4 rounded-3xl border border-indigo-200 space-y-2.5">
+                          <h4 class="font-bold text-xs text-indigo-800">Yangi e’lon joylash</h4>
+                          <input id="ann-title" required placeholder="Sarlavha..." class="w-full px-3 py-2.5 rounded-xl border text-xs" />
+                          <textarea id="ann-body" required rows="2" placeholder="E’lon matni..." class="w-full px-3 py-2 rounded-xl border text-xs"></textarea>
+                          <button type="submit" class="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold">Chop etish</button>
+                        </form>`
+                      : ''
+                  }
+                  ${state.club.announcements
+                    .map(
+                      (a) => `<div class="bg-white rounded-3xl p-4 border border-slate-200/80 space-y-1.5">
+                        <div class="flex justify-between text-[10px] text-slate-400">
+                          <span class="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">Klub yangiligi</span>
+                          <span>${escapeHtml(a.date)}</span>
+                        </div>
+                        <h3 class="font-extrabold text-sm text-slate-900">${escapeHtml(a.title)}</h3>
+                        <p class="text-xs text-slate-600 leading-relaxed">${escapeHtml(a.body)}</p>
+                        <div class="text-[11px] font-semibold text-indigo-600 pt-1">— ${escapeHtml(a.author)}</div>
+                      </div>`
+                    )
+                    .join('')}
+                </div>`
+              : ''
+          }
+
+          ${
+            state.clubTab === 'review'
+              ? `<div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-3">
+                  <h3 class="font-extrabold text-sm text-slate-900">🌟 Tengdoshga fikr bildirish (+20 XP)</h3>
+                  <form onsubmit="submitPeerReview(event)" class="space-y-2.5">
+                    <input id="rev-target" required placeholder="Kimga fikr bildirasiz?" class="w-full px-3 py-2.5 rounded-xl border text-xs" />
+                    <input id="rev-good" required placeholder="🌟 Nimasi zo‘r chiqdi?" class="w-full px-3 py-2.5 rounded-xl border text-xs" />
+                    <input id="rev-improve" placeholder="💡 Nimani yaxshilash mumkin?" class="w-full px-3 py-2.5 rounded-xl border text-xs" />
+                    <button type="submit" class="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold">Fikr yuborish</button>
+                  </form>
+                  <div class="space-y-2 pt-2 border-t">
+                    ${state.club.reviews
+                      .map(
+                        (r) => `<div class="bg-slate-50 p-3 rounded-2xl text-xs space-y-1">
+                          <div class="font-bold text-slate-800">${escapeHtml(r.targetName)} <span class="text-[10px] text-slate-400 font-normal">(${escapeHtml(r.authorName)})</span></div>
+                          <p class="text-emerald-700">🌟 ${escapeHtml(r.wentWell)}</p>
+                          <p class="text-amber-700">💡 ${escapeHtml(r.toImprove)}</p>
+                        </div>`
+                      )
+                      .join('')}
+                  </div>
+                </div>`
+              : ''
+          }
+
+          ${
+            state.clubTab === 'qa'
+              ? `<div class="space-y-3">
+                  <form onsubmit="submitQuestion(event)" class="bg-white p-4 rounded-3xl border flex gap-2">
+                    <input id="qa-question" required placeholder="Savolingizni yozing..." class="flex-1 px-3 py-2.5 rounded-xl border text-xs" />
+                    <button type="submit" class="px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">So‘rash</button>
+                  </form>
+                  ${state.club.qaList
+                    .map(
+                      (q) => `<div class="bg-white rounded-3xl p-4 border space-y-2">
+                        <div class="text-[10px] text-slate-400">${escapeHtml(q.authorName)} • ${escapeHtml(q.createdAt)}</div>
+                        <h4 class="font-bold text-sm text-slate-900">${escapeHtml(q.question)}</h4>
+                        <div class="space-y-1.5 pl-3 border-l-2 border-indigo-200">
+                          ${(q.replies || [])
+                            .map((rep) => `<div class="bg-slate-50 p-2 rounded-xl text-xs"><strong>${escapeHtml(rep.authorName)}:</strong> ${escapeHtml(rep.text)}</div>`)
+                            .join('')}
+                        </div>
+                        <div class="flex gap-2">
+                          <input id="qa-reply-${escapeHtml(q.id)}" placeholder="Javob yozing..." class="flex-1 px-3 py-2 rounded-xl border text-xs" />
+                          <button onclick="submitReply('${escapeHtml(q.id)}')" class="px-3.5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">Javob</button>
+                        </div>
+                      </div>`
+                    )
+                    .join('')}
+                </div>`
+              : ''
+          }
+
+          ${
+            state.clubTab === 'vocab'
+              ? `<div class="space-y-4">
+                  ${
+                    card
+                      ? `<div class="bg-gradient-to-br from-indigo-600 to-emerald-600 text-white rounded-3xl p-5 shadow-md space-y-4">
+                          <div class="flex justify-between text-xs text-indigo-100">
+                            <span>Umumiy lug‘at fleshkartasi</span>
+                            <span>${(state.vocabIndex % state.club.vocabList.length) + 1} / ${state.club.vocabList.length}</span>
+                          </div>
+                          <div onclick="flipVocabCard()" class="bg-white/15 border border-white/20 rounded-2xl p-6 text-center cursor-pointer min-h-[120px] flex flex-col items-center justify-center">
+                            ${
+                              !state.vocabFlipped
+                                ? `<div class="text-2xl font-extrabold">${escapeHtml(card.word)}</div>
+                                   <div class="text-xs text-indigo-100 mt-1">${escapeHtml(card.transcription)}</div>
+                                   <button type="button" onclick="event.stopPropagation(); speakEnglish('${escapeHtml(card.word)}', state.ttsAccent, 0.9)" class="mt-3 px-3 py-1 rounded-full bg-white/20 text-xs">🔊 Tinglash</button>`
+                                : `<div class="text-lg font-bold text-amber-200">${escapeHtml(card.translation)}</div>
+                                   <p class="text-xs italic mt-2">"${escapeHtml(card.example)}"</p>`
+                            }
+                          </div>
+                          <div class="flex gap-2">
+                            <button onclick="prevVocabCard()" class="flex-1 py-2.5 rounded-xl bg-white/15 text-xs font-bold">← Oldingi</button>
+                            <button onclick="nextVocabCard()" class="flex-1 py-2.5 rounded-xl bg-white/15 text-xs font-bold">Keyingi →</button>
+                          </div>
+                        </div>`
+                      : ''
+                  }
+                  <form onsubmit="submitNewVocab(event)" class="bg-white p-4 rounded-3xl border space-y-2.5">
+                    <h4 class="font-extrabold text-xs">Umumiy lug‘atga so‘z qo‘shish (+15 XP)</h4>
+                    <div class="grid grid-cols-2 gap-2">
+                      <input id="voc-word" required placeholder="Inglizcha so‘z *" class="px-3 py-2.5 rounded-xl border text-xs" />
+                      <input id="voc-uz" required placeholder="O‘zbekcha ma’nosi *" class="px-3 py-2.5 rounded-xl border text-xs" />
+                    </div>
+                    <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">Qo‘shish</button>
+                  </form>
+                </div>`
+              : ''
+          }
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 11. BO'LIM 5: PROFIL VA KALIT BOSHQARUVI
+    // =========================================================================
+    function renderProfileTab() {
+      const p = state.profile;
+      const superAdmin = isSuperAdmin();
+      const tempMod = isTempModerator();
+      const remMs = getRemainingModMs();
+      const xp = p.xp || 50;
+
+      let securityCardHtml = '';
+      if (superAdmin) {
+        securityCardHtml = `
+          <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-3xl p-5 shadow-lg space-y-4 border border-indigo-500/30">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <h3 class="font-extrabold text-sm text-amber-300">👑 Kalit So‘zlarni Boshqarish</h3>
+                <p class="text-[11px] text-indigo-200">Bosh Tashkilotchi paneli</p>
+              </div>
+              <button type="button" onclick="toggleAdminKeysPlain()" class="px-2.5 py-1.5 rounded-xl bg-white/10 text-amber-200 text-xs font-bold">
+                ${state.showAdminKeysPlain ? '🙈 Yashirish' : '👁️ Ko‘rish'}
+              </button>
+            </div>
+            <form onsubmit="saveSecuritySettings(event)" class="space-y-3">
+              <div>
+                <label class="block text-[11px] font-bold text-emerald-300 mb-1">Vaqtinchalik Moderator Kaliti:</label>
+                <input id="sec-temp-key" type="${state.showAdminKeysPlain ? 'text' : 'password'}" required value="${escapeHtml(state.security.tempModKey)}" class="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white font-mono text-xs" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-indigo-200 mb-1">Muddat:</label>
+                <select id="sec-duration" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-white/20 text-white text-xs">
+                  ${[15, 30, 60, 180, 1440]
+                    .map((min) => `<option value="${min}" ${state.security.defaultDurationMinutes === min ? 'selected' : ''}>${min >= 60 ? `${min / 60} soat` : `${min} daqiqa`}</option>`)
+                    .join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-amber-200 mb-1">Master Kalit:</label>
+                <input id="sec-master-key" type="${state.showAdminKeysPlain ? 'text' : 'password'}" required value="${escapeHtml(state.security.masterKey)}" class="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white font-mono text-xs" />
+              </div>
+              <button type="submit" class="w-full py-3 rounded-2xl bg-amber-400 text-slate-950 font-extrabold text-xs">💾 Saqlash</button>
+            </form>
+          </div>
+        `;
+      } else if (tempMod) {
+        securityCardHtml = `
+          <div class="bg-emerald-900 text-white rounded-3xl p-5 shadow-md space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-extrabold text-sm">⏳ Moderatorlik Faol</h3>
+              <span id="profile-mod-timer" class="font-mono font-extrabold text-base bg-black/30 px-3 py-1 rounded-xl text-emerald-300">${formatRemainingTime(remMs)}</span>
+            </div>
+            <button onclick="endTempModeratorEarly()" class="w-full py-2.5 rounded-xl bg-white text-emerald-950 font-bold text-xs">Sessiyani yakunlash</button>
+          </div>
+        `;
+      } else {
+        securityCardHtml = `
+          <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-3">
+            <h3 class="font-extrabold text-sm text-slate-900">🔑 Maxsus Kalit Bilan Kirish</h3>
+            <form onsubmit="activateSecretKeyFromProfile(event)" class="flex gap-2">
+              <div class="relative flex-1">
+                <input id="profile-key-input" type="${state.showProfileKeyPlain ? 'text' : 'password'}" autocomplete="off" placeholder="••••••••••••" class="w-full pl-3.5 pr-9 py-2.5 rounded-xl border text-xs font-mono" />
+                <button type="button" onclick="toggleProfileKeyPlain()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs">${state.showProfileKeyPlain ? '🙈' : '👁️'}</button>
+              </div>
+              <button type="submit" class="px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold">Kirish</button>
+            </form>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="space-y-4">
+          <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 space-y-3">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-emerald-500 text-white flex items-center justify-center font-extrabold text-xl">
+                  ${escapeHtml(p.fullName.charAt(0).toUpperCase())}
+                </div>
+                <div>
+                  <h2 class="font-extrabold text-base text-slate-900">${escapeHtml(p.fullName)}</h2>
+                  <p class="text-xs text-slate-500">${escapeHtml(p.group)} • ${escapeHtml(p.level)}</p>
+                </div>
+              </div>
+              <button onclick="logoutProfile()" class="px-2.5 py-1.5 rounded-xl bg-slate-100 text-xs font-bold">Chiqish</button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 pt-1">
+              <div class="bg-amber-50 p-3 rounded-2xl text-center border border-amber-100">
+                <div class="text-lg font-extrabold text-amber-600">${xp}</div>
+                <div class="text-[10px] font-bold text-amber-800">XP</div>
+              </div>
+              <div class="bg-rose-50 p-3 rounded-2xl text-center border border-rose-100">
+                <div class="text-lg font-extrabold text-rose-600">${p.streak || 1} kun</div>
+                <div class="text-[10px] font-bold text-rose-800">Seriya</div>
+              </div>
+              <div class="bg-emerald-50 p-3 rounded-2xl text-center border border-emerald-100">
+                <div class="text-lg font-extrabold text-emerald-600">${ALL_BADGES.filter((b) => xp >= b.minXp).length}/${ALL_BADGES.length}</div>
+                <div class="text-[10px] font-bold text-emerald-800">Nishon</div>
+              </div>
+            </div>
+          </div>
+
+          ${securityCardHtml}
+
+          <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2">
+            <h3 class="font-extrabold text-sm text-slate-900">Faollik tarixi</h3>
+            ${(p.history || [])
+              .map((h) => `<div class="flex justify-between text-xs py-1.5 border-b border-slate-100 last:border-none"><span>${escapeHtml(h.text)}</span><span class="text-[10px] text-slate-400">${escapeHtml(h.time)}</span></div>`)
+              .join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 12. QO'SHIMCHA MODALLAR (DAVOMAT VA YANGI DARS)
+    // =========================================================================
+    function openAttendanceModal(schedId) {
+      if (!hasModeratorPowers()) return;
+      const sched = state.club.schedules.find((s) => s.id === schedId);
+      if (!sched) return;
+      const roster = Array.from(new Set([state.profile.fullName, 'Jo‘rabek Esirgapov', 'Abdullayev Ulug‘bek', ...(sched.rsvps || [])]));
+      const att = sched.attendance || {};
+
+      const root = document.getElementById('modal-root');
+      root.innerHTML = `
+        <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[85vh] flex flex-col shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b">
+              <h3 class="font-extrabold text-base">Davomat — ${escapeHtml(sched.date)}</h3>
+              <button onclick="closeModal()" class="p-2 rounded-full bg-slate-100 text-xs font-bold">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto py-3 space-y-2.5">
+              ${roster
+                .map((name) => {
+                  const cur = att[name] || 'present';
+                  return `<div class="p-3 rounded-2xl bg-slate-50 border space-y-2" data-att-name="${escapeHtml(name)}" data-att-val="${escapeHtml(cur)}">
+                    <div class="text-xs font-bold">${escapeHtml(name)}</div>
+                    <div class="grid grid-cols-4 gap-1.5">
+                      ${[
+                        { id: 'present', label: 'Keldi ✅', cls: 'bg-emerald-600 text-white' },
+                        { id: 'late', label: 'Kechikdi ⏰', cls: 'bg-amber-500 text-white' },
+                        { id: 'excused', label: 'Sababli 📝', cls: 'bg-blue-500 text-white' },
+                        { id: 'absent', label: 'Kelmadi ❌', cls: 'bg-rose-500 text-white' }
+                      ]
+                        .map((b) => `<button type="button" onclick="pickAttendanceStatus(this, '${escapeHtml(name)}', '${b.id}', '${b.cls}')" class="att-btn py-2 rounded-xl text-[11px] font-bold ${cur === b.id ? b.cls : 'bg-white border text-slate-600'}">${b.label}</button>`)
+                        .join('')}
+                    </div>
+                  </div>`;
+                })
+                .join('')}
+            </div>
+            <button onclick="saveAttendance('${escapeHtml(sched.id)}')" class="w-full py-3.5 rounded-2xl bg-indigo-600 text-white font-bold text-sm mt-2">Davomatni saqlash</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function openNewScheduleModal() {
+      if (!hasModeratorPowers()) return;
+      const root = document.getElementById('modal-root');
+      root.innerHTML = `
+        <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-white w-full max-w-md rounded-3xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-extrabold text-base">Yangi dars qo‘shish</h3>
+              <button onclick="closeModal()" class="p-2 rounded-full bg-slate-100 text-xs font-bold">✕</button>
+            </div>
+            <form onsubmit="createNewSchedule(event)" class="space-y-2.5">
+              <div class="grid grid-cols-2 gap-2">
+                <input id="ns-day" value="Dushanba" required class="px-3 py-2.5 rounded-xl border text-xs" />
+                <input id="ns-date" value="30-Noyabr" required class="px-3 py-2.5 rounded-xl border text-xs" />
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="ns-time" value="13:20 – 14:40" required class="px-3 py-2.5 rounded-xl border text-xs" />
+                <input id="ns-level" value="A1 – A2" required class="px-3 py-2.5 rounded-xl border text-xs" />
+              </div>
+              <input id="ns-loc" value="B-bino, 204-xona" required class="w-full px-3 py-2.5 rounded-xl border text-xs" />
+              <input id="ns-topic" required placeholder="Dars mavzusi *" class="w-full px-3 py-2.5 rounded-xl border text-xs font-bold" />
+              <textarea id="ns-expl" rows="3" placeholder="Mavzu tushuntirishi..." class="w-full px-3 py-2 rounded-xl border text-xs"></textarea>
+              <button type="submit" class="w-full py-3 rounded-2xl bg-indigo-600 text-white font-bold text-xs">Qo‘shish</button>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    function closeModal() {
+      const root = document.getElementById('modal-root');
+      if (root) root.innerHTML = '';
+    }
+
+    // =========================================================================
+    // 13. GLOBAL EVENT HANDLERS
+    // =========================================================================
+    window.switchTab = (tab) => {
+      state.activeTab = tab;
+      render();
+    };
+
+    window.toggleOnboardingInterest = (btn) => {
+      const active = btn.classList.toggle('active-interest');
+      const label = btn.getAttribute('data-interest');
+      if (active) {
+        btn.className = 'onb-interest-btn active-interest px-3 py-1.5 rounded-full text-xs font-semibold transition-all bg-indigo-600 text-white';
+        btn.textContent = '✓ ' + label;
+      } else {
+        btn.className = 'onb-interest-btn px-3 py-1.5 rounded-full text-xs font-semibold transition-all bg-slate-100 text-slate-600';
+        btn.textContent = '+ ' + label;
+      }
+    };
+
+    window.toggleOnboardingKeyBox = () => {
+      state.showOnboardingKeyBox = !state.showOnboardingKeyBox;
+      state.onboardingKeyError = '';
+      render();
+    };
+
+    window.toggleOnboardingKeyPlain = () => {
+      state.showOnboardingKeyPlain = !state.showOnboardingKeyPlain;
+      render();
+    };
+
+    document.addEventListener('submit', (e) => {
+      if (e.target && e.target.id === 'onboarding-form') {
+        e.preventDefault();
+        const fullName = document.getElementById('onb-fullname').value.trim();
+        const group = document.getElementById('onb-group').value;
+        const level = document.getElementById('onb-level').value;
+        const interests = Array.from(document.querySelectorAll('.onb-interest-btn.active-interest')).map((el) => el.getAttribute('data-interest'));
+
+        let activeRole = 'learner';
+        let modExpiresAt = null;
+        let modKeyVersion = null;
+
+        const keyEl = document.getElementById('onb-secret-key');
+        if (keyEl && keyEl.value.trim()) {
+          const check = evaluateSecretKey(keyEl.value, fullName);
+          if (!check.valid) {
+            state.onboardingKeyError = check.error;
+            render();
+            return;
+          }
+          activeRole = check.role;
+          modExpiresAt = check.expiresAt;
+          modKeyVersion = check.keyVersion;
+        }
+
+        state.profile = {
+          fullName,
+          group,
+          level,
+          interests: interests.length ? interests : ['Grammatika'],
+          baseRole: 'learner',
+          activeRole,
+          modExpiresAt,
+          modKeyVersion,
+          xp: 50,
+          streak: 0,
+          createdAt: new Date().toISOString(),
+          joinedAt: new Date().toISOString(),
+          attendanceDays: [],
+          badges: [],
+          history: [{ text: 'English Peers klubiga qo‘shildi (+50 XP)', time: 'Hozirgina' }]
+        };
+        persistAll();
+        showToast('🎉 Xush kelibsiz! (+50 XP)');
+        render();
+      }
+    });
+
+    window.setScheduleDayFilter = (d) => {
+      state.scheduleDayFilter = d;
+      render();
+    };
+
+    window.toggleLessonReminder = (schedId, topic) => {
+      const next = !state.reminders[schedId];
+      state.reminders[schedId] = next;
+      persistAll();
+      showToast(next ? `🔔 Eslatma yoqildi: ${topic}` : 'Eslatma o‘chirildi.');
+      render();
+    };
+
+    window.toggleRsvp = (schedId) => {
+      const sched = state.club.schedules.find((s) => s.id === schedId);
+      if (!sched || !state.profile) return;
+      const name = state.profile.fullName;
+      if ((sched.rsvps || []).includes(name)) {
+        sched.rsvps = sched.rsvps.filter((n) => n !== name);
+        persistAll();
+        showToast('Ro‘yxatdan chiqdingiz.');
+      } else {
+        sched.rsvps = [...(sched.rsvps || []), name];
+        addXp(10, `Darsga yozildi: ${sched.date}`);
+        showToast('Darsga yozildingiz! +10 XP');
+      }
+      render();
+    };
+
+    window.claimSpeaker = (schedId) => {
+      const sched = state.club.schedules.find((s) => s.id === schedId);
+      if (!sched || !state.profile) return;
+      sched.speakerName = state.profile.fullName;
+      addXp(50, `Spiker bo‘ldi: ${sched.date}`);
+      showToast('Siz ushbu dars spikeri bo‘ldingiz! (+50 XP)');
+      render();
+    };
+
+    window.appendLessonNote = (schedId) => {
+      const el = document.getElementById('res-append-note');
+      if (!el || !el.value.trim()) return;
+      const sched = state.club.schedules.find((s) => s.id === schedId);
+      if (!sched) return;
+      sched.resources.fullExplanation = `${sched.resources.fullExplanation || ''}\n\n📌 QO‘SHIMCHA (${state.profile.fullName}):\n${el.value.trim()}`;
+      addXp(15, `Tushuntirish qo‘shdi: ${sched.date}`);
+      showToast('Qo‘shimcha tushuntirish saqlandi! (+15 XP)');
+      openResourcesModal(schedId, 'explanation');
+    };
+
+    // Moderator qo'lda dars lug'ati qo'shish va o'chirish
+    window.addLessonManualVocab = (e, schedId) => {
+      e.preventDefault();
+      const word = document.getElementById('lv-word').value.trim();
+      const uz = document.getElementById('lv-uz').value.trim();
+      const trans = document.getElementById('lv-trans').value.trim();
+      const example = document.getElementById('lv-ex').value.trim();
+      if (!word || !uz) return;
+      const sched = state.club.schedules.find((s) => s.id === schedId);
+      if (!sched) return;
+      sched.resources.vocab = sched.resources.vocab || [];
+      sched.resources.vocab.push({
+        id: 'lvoc-' + Date.now(),
+        word,
+        uz,
+        trans,
+        example
+      });
+      addXp(10, `Dars lug‘atiga so‘z yozdi: ${word}`);
+      showToast(`"${word}" dars lug‘atiga qo‘shildi!`);
+      openResourcesModal(schedId, 'vocab');
+    };
+
+    window.deleteLessonManualVocab = (schedId, vocabId) => {
+      const sched = state.club.schedules.find((s) => s.id === schedId);
+      if (!sched || !sched.resources?.vocab) return;
+      sched.resources.vocab = sched.resources.vocab.filter((v) => v.id !== vocabId);
+      persistAll();
+      showToast('So‘z lug‘atdan o‘chirildi.');
+      openResourcesModal(schedId, 'vocab');
+    };
+
+    window.addLessonSocialLink = (e, schedId) => {
+      e.preventDefault();
+      const plat = document.getElementById('lnk-platform').value;
+      const title = document.getElementById('lnk-title').value.trim();
+      const rawUrl = document.getElementById('lnk-url').value.trim();
+      if (!title || !rawUrl) return;
+      const sched = state.club.schedules.find((s) => s.id === schedId);
+      if (!sched) return;
+      const url = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
+      sched.resources.socialLinks = [...(sched.resources.socialLinks || []), { id: 'lnk-' + Date.now(), platform: plat, title, url }];
+      addXp(15, `Havola qo‘shdi (${plat})`);
+      showToast('Havola saqlandi! (+15 XP)');
+      openResourcesModal(schedId, 'links');
+    };
+
+    // Dars testini tanlash, yakunlash va tahlil qilish
+    window.pickLessonTestOption = (schedId, qId, optIdx) => {
+      const ts = getLessonTestState(schedId);
+      if (ts.submitted) return;
+      ts.answers[qId] = optIdx;
+      const bodyEl = document.getElementById('resource-modal-body');
+      const sched = state.club.schedules.find((s) => s.id === schedId);
+      if (bodyEl && sched) {
+        bodyEl.innerHTML = renderResourceModalBody(
+          sched,
+          sched.resources,
+          sched.questions || [],
+          ts,
+          hasModeratorPowers() || sched.speakerName === state.profile?.fullName
+        );
+      }
+    };
+
+    window.submitLessonTest = (schedId) => {
+      const sched = state.club.schedules.find((s) => s.id === schedId);
+      if (!sched) return;
+      const ts = getLessonTestState(schedId);
+      const questions = sched.questions || [];
+      const answeredCount = Object.keys(ts.answers || {}).length;
+      if (answeredCount < questions.length) {
+        showToast(`Hali ${questions.length - answeredCount} ta savol belgilanganicha yo‘q. Barcha savollarni belgilang yoki davom eting.`, 'warning');
+      }
+      ts.submitted = true;
+      ts.reviewFilter = 'all';
+      const rightCount = questions.filter((q) => ts.answers[q.id] === q.correctIndex).length;
+      const pct = questions.length ? Math.round((rightCount / questions.length) * 100) : 0;
+      addXp(Math.max(10, Math.round(pct / 4)), `Test tahlili (${pct}%): ${sched.date}`);
+      showToast(`Test yakunlandi! O‘zlashtirish: ${pct}%`);
+      openResourcesModal(schedId, 'test');
+    };
+
+    window.retakeLessonTest = (schedId) => {
+      state.lessonTestStates[schedId] = { answers: {}, submitted: false, reviewFilter: 'all' };
+      openResourcesModal(schedId, 'test');
+    };
+
+    window.setTestReviewFilter = (schedId, filterVal) => {
+      const ts = getLessonTestState(schedId);
+      ts.reviewFilter = filterVal;
+      openResourcesModal(schedId, 'test');
+    };
+
+    window.pickAttendanceStatus = (btn, name, statusId, activeCls) => {
+      const container = btn.closest('[data-att-name]');
+      if (!container) return;
+      container.setAttribute('data-att-val', statusId);
+      container.querySelectorAll('.att-btn').forEach((b) => {
+        b.className = 'att-btn py-2 rounded-xl text-[11px] font-bold bg-white border text-slate-600';
+      });
+      btn.className = `att-btn py-2 rounded-xl text-[11px] font-bold ${activeCls}`;
+    };
+
+    window.saveAttendance = (schedId) => {
+      const sched = state.club.schedules.find((s) => s.id === schedId);
+      if (!sched) return;
+      const map = {};
+      document.querySelectorAll('[data-att-name]').forEach((el) => {
+        map[el.getAttribute('data-att-name')] = el.getAttribute('data-att-val');
+      });
+      sched.attendance = map;
+      addXp(15, `Davomat saqladi: ${sched.date}`);
+      closeModal();
+      showToast('Davomat saqlandi!');
+      render();
+    };
+
+    window.createNewSchedule = (e) => {
+      e.preventDefault();
+      const topic = document.getElementById('ns-topic').value.trim();
+      if (!topic) return;
+      state.club.schedules.push({
+        id: 'lesson-' + Date.now(),
+        lessonNumber: state.club.schedules.length + 1,
+        day: document.getElementById('ns-day').value.trim(),
+        date: document.getElementById('ns-date').value.trim(),
+        time: document.getElementById('ns-time').value.trim(),
+        level: document.getElementById('ns-level').value.trim(),
+        location: document.getElementById('ns-loc').value.trim(),
+        topic,
+        speakerName: state.profile.fullName,
+        rsvps: [state.profile.fullName],
+        attendance: {},
+        resources: {
+          fullExplanation: document.getElementById('ns-expl').value.trim() || `${topic} mavzusi bo‘yicha dars tushuntirishi.`,
+          vocab: [],
+          socialLinks: []
+        },
+        questions: buildLesson3Questions()
+      });
+      persistAll();
+      closeModal();
+      showToast('Yangi dars qo‘shildi!');
+      render();
+    };
+
+    // Talaffuz
+    window.setStudioTab = (tab) => { state.studioTab = tab; render(); };
+    window.setTtsAccent = (acc) => { state.ttsAccent = acc; render(); };
+    window.setTtsRate = (r) => { state.ttsRate = r; render(); };
+    window.updateTtsTextValue = (val) => { state.ttsText = val; };
+    window.clearTtsText = () => { state.ttsText = ''; render(); };
+    window.playCurrentTts = (rate) => {
+      const ta = document.getElementById('tts-input');
+      if (ta) state.ttsText = ta.value;
+      speakEnglish(state.ttsText, state.ttsAccent, rate);
+    };
+    window.startEarQuiz = (pairId) => {
+      const pair = MINIMAL_PAIRS.find((m) => m.id === pairId);
+      if (!pair) return;
+      const chosen = Math.random() < 0.5 ? pair.wordA : pair.wordB;
+      state.earQuizTarget = { pairId, answerWord: chosen };
+      state.earQuizFeedback = null;
+      render();
+      speakEnglish(chosen, state.ttsAccent, 0.9);
+    };
+    window.answerEarQuiz = (pairId, picked) => {
+      if (!state.earQuizTarget || state.earQuizTarget.pairId !== pairId) return;
+      const correct = picked === state.earQuizTarget.answerWord;
+      state.earQuizFeedback = {
+        pairId,
+        correct,
+        msg: correct ? `✅ To‘g‘ri! "${state.earQuizTarget.answerWord}"` : `❌ Bu "${state.earQuizTarget.answerWord}" edi.`
+      };
+      if (correct) addXp(10, `Quloq testi: ${picked}`);
+      render();
+    };
+    window.practiceTwisterNormal = (txt) => { speakEnglish(txt, state.ttsAccent, 1.0); addXp(5, 'Tez aytish'); render(); };
+    window.practiceShadowing = (txt) => { speakEnglish(txt, state.ttsAccent, 0.9); addXp(10, 'Shadowing'); render(); };
+    window.runMicCheck = () => {
+      state.micError = '';
+      state.spokenResult = null;
+      const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+      if (!SR) {
+        state.micError = 'Brauzeringiz jonli mikrofonni qo‘llab-quvvatlamaydi.';
+        render();
+        return;
+      }
+      const rec = new SR();
+      rec.lang = state.ttsAccent;
+      rec.start();
+      rec.onresult = (ev) => {
+        const transcript = ev.results[0][0].transcript;
+        const targetWords = (state.micTargetPhrase || '').toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean);
+        const spokenWords = transcript.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean);
+        let match = 0;
+        targetWords.forEach((w) => { if (spokenWords.includes(w)) match++; });
+        const accuracy = targetWords.length ? Math.round((match / targetWords.length) * 100) : 0;
+        state.spokenResult = { transcript, accuracy };
+        if (accuracy >= 70) addXp(15, `Talaffuz tekshiruvi (${accuracy}%)`);
+        render();
+      };
+      rec.onerror = () => { state.micError = 'Ovoz aniqlanmadi.'; render(); };
+    };
+
+    // Vazifa va Jamoa
+    window.setLessonsTab = (t) => { state.lessonsTab = t; render(); };
+    window.submitHomeworkForm = (e) => {
+      e.preventDefault();
+      const lessonTitle = document.getElementById('hw-lesson').value;
+      const answerText = document.getElementById('hw-text').value.trim();
+      if (!answerText) return;
+      state.club.submissions.unshift({ id: 'sub-' + Date.now(), userName: state.profile.fullName, lessonTitle, answerText, status: 'Pending', mentorComment: '' });
+      addXp(25, 'Uy vazifasi topshirdi');
+      showToast('Uy vazifasi yuborildi! (+25 XP)');
+      render();
+    };
+    window.reviewHomeworkItem = (subId) => {
+      const inp = document.getElementById('rev-input-' + subId);
+      if (!inp || !inp.value.trim()) return;
+      const sub = state.club.submissions.find((s) => s.id === subId);
+      if (!sub) return;
+      sub.status = 'Reviewed';
+      sub.mentorComment = `${inp.value.trim()} — (${state.profile.fullName})`;
+      addXp(15, 'Vazifa tekshirdi');
+      showToast('Izoh saqlandi! (+15 XP)');
+      render();
+    };
+    window.setClubTab = (t) => { state.clubTab = t; render(); };
+    window.submitAnnouncement = (e) => {
+      e.preventDefault();
+      state.club.announcements.unshift({
+        id: 'ann-' + Date.now(),
+        title: document.getElementById('ann-title').value.trim(),
+        body: document.getElementById('ann-body').value.trim(),
+        author: state.profile.fullName,
+        date: 'Hozirgina'
+      });
+      persistAll();
+      showToast('E’lon chop etildi!');
+      render();
+    };
+    window.submitPeerReview = (e) => {
+      e.preventDefault();
+      state.club.reviews.unshift({
+        id: 'rev-' + Date.now(),
+        targetName: document.getElementById('rev-target').value.trim(),
+        wentWell: document.getElementById('rev-good').value.trim(),
+        toImprove: document.getElementById('rev-improve').value.trim() || 'Ajoyib!',
+        authorName: state.profile.fullName,
+        createdAt: 'Hozirgina'
+      });
+      addXp(20, 'Peer Review');
+      showToast('Fikr yuborildi! (+20 XP)');
+      render();
+    };
+    window.submitQuestion = (e) => {
+      e.preventDefault();
+      state.club.qaList.unshift({ id: 'qa-' + Date.now(), question: document.getElementById('qa-question').value.trim(), authorName: state.profile.fullName, createdAt: 'Hozirgina', replies: [] });
+      addXp(10, 'Savol berdi');
+      render();
+    };
+    window.submitReply = (qaId) => {
+      const inp = document.getElementById('qa-reply-' + qaId);
+      if (!inp || !inp.value.trim()) return;
+      const item = state.club.qaList.find((x) => x.id === qaId);
+      if (!item) return;
+      item.replies.push({ id: 'rep-' + Date.now(), authorName: state.profile.fullName, text: inp.value.trim() });
+      addXp(15, 'Javob berdi');
+      render();
+    };
+    window.flipVocabCard = () => { state.vocabFlipped = !state.vocabFlipped; render(); };
+    window.prevVocabCard = () => { state.vocabFlipped = false; state.vocabIndex = (state.vocabIndex - 1 + state.club.vocabList.length) % state.club.vocabList.length; render(); };
+    window.nextVocabCard = () => { state.vocabFlipped = false; state.vocabIndex = (state.vocabIndex + 1) % state.club.vocabList.length; render(); };
+    window.submitNewVocab = (e) => {
+      e.preventDefault();
+      const word = document.getElementById('voc-word').value.trim();
+      const translation = document.getElementById('voc-uz').value.trim();
+      state.club.vocabList.unshift({ id: 'voc-' + Date.now(), word, transcription: '/.../', translation, example: `We used "${word}".` });
+      addXp(15, `Yangi so‘z: ${word}`);
+      render();
+    };
+
+    // Profil va Kalitlar
+    window.toggleProfileKeyPlain = () => { state.showProfileKeyPlain = !state.showProfileKeyPlain; render(); };
+    window.activateSecretKeyFromProfile = (e) => {
+      e.preventDefault();
+      const inp = document.getElementById('profile-key-input');
+      if (!inp || !inp.value.trim()) return;
+      const res = evaluateSecretKey(inp.value, state.profile.fullName);
+      if (!res.valid) { showToast(res.error, 'warning'); return; }
+      state.profile.activeRole = res.role;
+      state.profile.modExpiresAt = res.expiresAt;
+      state.profile.modKeyVersion = res.keyVersion;
+      persistAll();
+      showToast(res.role === 'super_admin' ? '👑 Bosh Tashkilotchi faollashdi!' : '🛡️ Moderatorlik faollashdi!');
+      render();
+    };
+    window.toggleAdminKeysPlain = () => { state.showAdminKeysPlain = !state.showAdminKeysPlain; render(); };
+    window.saveSecuritySettings = (e) => {
+      e.preventDefault();
+      state.security.tempModKey = document.getElementById('sec-temp-key').value.trim();
+      state.security.defaultDurationMinutes = Number(document.getElementById('sec-duration').value) || 60;
+      state.security.masterKey = document.getElementById('sec-master-key').value.trim();
+      state.security.keyVersion = (state.security.keyVersion || 1) + 1;
+      persistAll();
+      showToast('🔐 Kalitlar saqlandi!');
+      render();
+    };
+    window.endTempModeratorEarly = () => {
+      if (!state.profile) return;
+      state.profile.activeRole = state.profile.baseRole || 'learner';
+      state.profile.modExpiresAt = null;
+      state.profile.modKeyVersion = null;
+      persistAll();
+      render();
+    };
+    window.logoutProfile = () => { state.profile = null; persistAll(); render(); };
+
+    (async () => {
+      try {
+        if (window.EPApi) {
+          const remote = await window.EPApi.initialize();
+          if (remote && remote.profile && !state.profile) {
+            state.profile = remote.profile;
+            if (remote.club) state.club = remote.club;
+            if (remote.reminders) state.reminders = remote.reminders;
+            if (remote.security) state.security = { ...state.security, ...remote.security };
+            saveJson(STORAGE_KEYS.PROFILE, state.profile);
+            saveJson(STORAGE_KEYS.CLUB, state.club);
+            saveJson(STORAGE_KEYS.REMINDERS, state.reminders);
+          }
+        }
+      } catch (err) {
+        console.warn('Server sync not available; local mode is active.', err);
+      }
+      render();
+    })();
+  </script>
+</body>
+</html>
