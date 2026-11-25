@@ -1,0 +1,24 @@
+name = "english-peers"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/bot"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "english-peers"
+database_id = "D1_ID_NI_SHU_YERGA_QOYING"
+
+[triggers]
+crons = ["*/5 * * * *"]   # eslatmalar har 5 daqiqada tekshiriladi
+
+[vars]
+APP_URL = "https://english-peers.SIZNING-SUBDOMEN.workers.dev"
+
+# Audio/video/fayl yuklash uchun (R2 uchun Cloudflare'da karta kerak bo'lishi mumkin) — keyin yoqing:
+# [[r2_buckets]]
+# binding = "FILES"
+# bucket_name = "english-peers-files"
