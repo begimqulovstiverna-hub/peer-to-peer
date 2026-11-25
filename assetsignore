@@ -1,0 +1,15 @@
+worker.js
+wrangler.jsonc
+wrangler.toml
+server.js
+bot.js
+package.json
+package-lock.json
+README.md
+schema.sql
+node_modules
+.assetsignore
+.env
+.env.example
+.git
+.github
