@@ -963,6 +963,21 @@
                 />
               </div>
 
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Nickname * <span class="font-normal text-slate-400">(tengdoshlar sizni shu nom bilan topadi)</span></label>
+                <input
+                  id="onb-nick"
+                  type="text"
+                  required
+                  maxlength="20"
+                  autocapitalize="none"
+                  autocomplete="off"
+                  placeholder="Masalan: diyorbek_01"
+                  class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-sm"
+                />
+                <p class="text-[10px] text-slate-400 mt-1">3–20 ta: lotin harflari, raqam va _ belgisi. Keyin o‘zgartirib bo‘lmaydi.</p>
+              </div>
+
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Guruh / Yo‘nalish</label>
@@ -2106,7 +2121,7 @@
               ? `<div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-3">
                   <h3 class="font-extrabold text-sm text-slate-900">🌟 Tengdoshga fikr bildirish (+20 XP)</h3>
                   <form onsubmit="submitPeerReview(event)" class="space-y-2.5">
-                    <input id="rev-target" required placeholder="Kimga fikr bildirasiz?" class="w-full px-3 py-2.5 rounded-xl border text-xs" />
+                    <input id="rev-target" required placeholder="Kimga? Nickname yozing (masalan: @diyorbek_01)" class="w-full px-3 py-2.5 rounded-xl border text-xs" />
                     <input id="rev-good" required placeholder="🌟 Nimasi zo‘r chiqdi?" class="w-full px-3 py-2.5 rounded-xl border text-xs" />
                     <input id="rev-improve" placeholder="💡 Nimani yaxshilash mumkin?" class="w-full px-3 py-2.5 rounded-xl border text-xs" />
                     <button type="submit" class="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold">Fikr yuborish</button>
@@ -2418,10 +2433,15 @@
       render();
     };
 
-    document.addEventListener('submit', (e) => {
+    document.addEventListener('submit', async (e) => {
       if (e.target && e.target.id === 'onboarding-form') {
         e.preventDefault();
         const fullName = document.getElementById('onb-fullname').value.trim();
+        const nickname = document.getElementById('onb-nick').value.trim().replace(/^@/, '').toLowerCase();
+        if (!/^[a-z0-9_]{3,20}$/.test(nickname)) {
+          showToast('Nickname 3–20 ta lotin harfi, raqam yoki _ bo‘lishi kerak.', 'warning');
+          return;
+        }
         const group = document.getElementById('onb-group').value;
         const level = document.getElementById('onb-level').value;
         const interests = Array.from(document.querySelectorAll('.onb-interest-btn.active-interest')).map((el) => el.getAttribute('data-interest'));
@@ -2432,7 +2452,18 @@
 
         const keyEl = document.getElementById('onb-secret-key');
         if (keyEl && keyEl.value.trim()) {
-          const check = evaluateSecretKey(keyEl.value, fullName);
+          // Telegram ichida kalit faqat serverda tekshiriladi (Cloudflare Secrets); demo rejimda mahalliy
+          let check;
+          if (window.EPApi && window.EPApi.ready) {
+            try {
+              const r = await window.EPApi.validateModeratorKey(keyEl.value.trim());
+              check = { valid: !!r.valid, role: r.role, expiresAt: r.expiresAt, keyVersion: null, error: 'Noto‘g‘ri maxsus kalit so‘z!' };
+            } catch {
+              check = { valid: false, error: 'Noto‘g‘ri maxsus kalit so‘z!' };
+            }
+          } else {
+            check = evaluateSecretKey(keyEl.value, fullName);
+          }
           if (!check.valid) {
             state.onboardingKeyError = check.error;
             render();
@@ -2443,12 +2474,12 @@
           modKeyVersion = check.keyVersion;
         }
 
-        state.profile = {
+        const newProfile = {
           fullName,
+          nickname,
           group,
           level,
           interests: interests.length ? interests : ['Grammatika'],
-          experience: interests.length ? interests : ['Tajriba yo‘q'],
           baseRole: 'learner',
           activeRole,
           modExpiresAt,
@@ -2461,26 +2492,18 @@
           badges: [],
           history: [{ text: 'English Peers klubiga qo‘shildi (+50 XP)', time: 'Hozirgina' }]
         };
-        persistAll();
-        // Serverga saqlash (Telegram Mini App orqali)
-        (async () => {
+        if (window.EPApi && window.EPApi.ready) {
           try {
-            if (window.EPApi && window.EPApi.ready) {
-              const res = await window.EPApi.register({
-                fullName, group, level,
-                interests: state.profile.interests,
-                experience: state.profile.experience
-              });
-              if (res && res.totalXp != null) state.profile.xp = res.totalXp;
-              if (res && res.profile) state.profile = { ...state.profile, ...res.profile };
-              persistAll();
-            }
+            await window.EPApi.register(newProfile);
           } catch (err) {
-            console.warn('Server register:', err);
+            showToast(err.message || 'Ro‘yxatdan o‘tib bo‘lmadi.', 'warning');
+            return;
           }
-          showToast('🎉 Xush kelibsiz! (+50 XP)');
-          render();
-        })();
+        }
+        state.profile = newProfile;
+        persistAll();
+        showToast('🎉 Xush kelibsiz! (+50 XP)');
+        render();
       }
     });
 
@@ -2513,62 +2536,12 @@
       render();
     };
 
-    window.claimSpeaker = async (schedId) => {
+    window.claimSpeaker = (schedId) => {
       const sched = state.club.schedules.find((s) => s.id === schedId);
       if (!sched || !state.profile) return;
-      if (sched.speakerName) {
-        showToast('Bu darsda speaker allaqachon bor', 'warning');
-        return;
-      }
-      try {
-        if (window.EPApi && window.EPApi.ready) {
-          await window.EPApi.speakerAction(schedId, 'claim');
-        }
-      } catch (err) {
-        showToast(err.message || 'Speaker bo‘lishda xato', 'warning');
-        return;
-      }
       sched.speakerName = state.profile.fullName;
-      sched.speakerClaimedAt = new Date().toISOString();
-      persistAll();
-      showToast('Siz ushbu dars spikeri bo‘ldingiz! Moderator tasdiqlagach +300 XP');
-      render();
-    };
-
-    window.cancelSpeaker = async (schedId) => {
-      const sched = state.club.schedules.find((s) => s.id === schedId);
-      if (!sched || !state.profile) return;
-      if (sched.speakerName !== state.profile.fullName && !hasModeratorPowers()) {
-        showToast('Faqat o‘zingiz bekor qila olasiz', 'warning');
-        return;
-      }
-      try {
-        if (window.EPApi && window.EPApi.ready) {
-          await window.EPApi.speakerAction(schedId, 'cancel');
-        } else {
-          // Local: 24 soat tekshiruvi
-          const can = (() => {
-            try {
-              const [d, m, y] = (sched.date || '').split('.').map(Number);
-              // fallback: allow if no parse
-              if (!y) return true;
-              const start = new Date(y, m - 1, d, 13, 20).getTime();
-              return (start - Date.now()) / 3600000 >= 24;
-            } catch { return true; }
-          })();
-          if (!can && !hasModeratorPowers()) {
-            showToast('Darsga 24 soatdan kam qolgan — bekor qilib bo‘lmaydi', 'warning');
-            return;
-          }
-        }
-      } catch (err) {
-        showToast(err.message || 'Bekor qilishda xato', 'warning');
-        return;
-      }
-      sched.speakerName = '';
-      sched.speakerClaimedAt = null;
-      persistAll();
-      showToast('Speakerlik bekor qilindi');
+      addXp(50, `Spiker bo‘ldi: ${sched.date}`);
+      showToast('Siz ushbu dars spikeri bo‘ldingiz! (+50 XP)');
       render();
     };
 
@@ -2826,13 +2799,24 @@
       showToast('E’lon chop etildi!');
       render();
     };
-    window.submitPeerReview = (e) => {
+    window.submitPeerReview = async (e) => {
       e.preventDefault();
+      const target = document.getElementById('rev-target').value.trim().replace(/^@/, '').toLowerCase();
+      const wentWell = document.getElementById('rev-good').value.trim();
+      const toImprove = document.getElementById('rev-improve').value.trim() || 'Ajoyib!';
+      if (window.EPApi && window.EPApi.ready) {
+        try {
+          await window.EPApi.sendReview({ target, wentWell, toImprove });
+        } catch (err) {
+          showToast(err.message || 'Fikrni yuborib bo‘lmadi.', 'warning');
+          return;
+        }
+      }
       state.club.reviews.unshift({
         id: 'rev-' + Date.now(),
-        targetName: document.getElementById('rev-target').value.trim(),
-        wentWell: document.getElementById('rev-good').value.trim(),
-        toImprove: document.getElementById('rev-improve').value.trim() || 'Ajoyib!',
+        targetName: '@' + target,
+        wentWell,
+        toImprove,
         authorName: state.profile.fullName,
         createdAt: 'Hozirgina'
       });
@@ -2915,6 +2899,15 @@
             saveJson(STORAGE_KEYS.PROFILE, state.profile);
             saveJson(STORAGE_KEYS.CLUB, state.club);
             saveJson(STORAGE_KEYS.REMINDERS, state.reminders);
+          }
+          if (window.EPApi.ready) {
+            try {
+              const n = await window.EPApi.getNotifications();
+              if (n.items && n.items.length) {
+                showToast('🔔 ' + n.items[0].text + (n.items.length > 1 ? ` (+${n.items.length - 1} ta yana)` : ''));
+                window.EPApi.markNotificationsRead().catch(() => {});
+              }
+            } catch {}
           }
         }
       } catch (err) {
