@@ -1,0 +1,9 @@
+worker.js
+wrangler.jsonc
+server.js
+bot.js
+package.json
+README.md
+schema.sql
+peers.txt
+.assetsignore
