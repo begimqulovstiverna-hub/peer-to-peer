@@ -1,2 +1,0 @@
-CREATE TABLE IF NOT EXISTS homework (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, user_name TEXT, lesson_title TEXT, answer_text TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Pending', mentor_comment TEXT, mentor_name TEXT, mentor_id TEXT, user_feedback TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, reviewed_at TEXT);
-CREATE INDEX IF NOT EXISTS idx_homework_user ON homework(user_id);
