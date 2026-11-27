@@ -718,6 +718,7 @@
       micError: '',
       lessonsTab: 'homework',
       notifs: { items: [], unread: 0, open: false },
+      onbMode: 'register',
       clubTab: 'announcements',
       vocabIndex: 0,
       vocabFlipped: false,
@@ -1013,7 +1014,7 @@
       if (!appEl) return;
 
       if (!state.profile) {
-        appEl.innerHTML = renderOnboarding();
+        appEl.innerHTML = state.onbMode === 'login' ? renderLogin() : renderOnboarding();
         return;
       }
 
@@ -1104,6 +1105,48 @@
       }
     };
 
+    function renderLogin() {
+      return `
+        <div class="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+          <form id="login-form" onsubmit="submitLogin(event)" class="w-full bg-white rounded-3xl shadow-xl p-6 space-y-4">
+            <div>
+              <h1 class="font-extrabold text-xl text-slate-900">Akkauntga kirish</h1>
+              <p class="text-xs text-slate-500 mt-1">Avval ro‘yxatdan o‘tgan nickname va parolingizni kiriting. Ma’lumotlaringiz shu Telegram akkauntga ko‘chiriladi.</p>
+            </div>
+            <input id="login-nick" type="text" required autocapitalize="none" autocomplete="username" placeholder="Nickname (masalan: diyorbek_01)" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-sm" />
+            <input id="login-pass" type="password" required autocomplete="current-password" placeholder="Parol" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-sm" />
+            <button type="submit" class="w-full py-3.5 rounded-2xl bg-indigo-600 text-white font-bold text-sm">Kirish</button>
+            <button type="button" onclick="setOnbMode('register')" class="w-full py-2 text-xs font-bold text-indigo-600">← Yangi profil yaratish</button>
+          </form>
+        </div>`;
+    }
+
+    window.setOnbMode = (m) => { state.onbMode = m; render(); };
+
+    window.submitLogin = async (e) => {
+      e.preventDefault();
+      if (!(window.EPApi && window.EPApi.ready)) { showToast('Kirish faqat Telegram Mini App ichida ishlaydi.', 'warning'); return; }
+      const nick = document.getElementById('login-nick').value.trim().replace(/^@/, '').toLowerCase();
+      const pass = document.getElementById('login-pass').value;
+      try {
+        const r = await window.EPApi.login(nick, pass);
+        if (!r.profile) throw new Error('Profil topilmadi');
+        state.profile = r.profile;
+        if (r.club) state.club = r.club;
+        if (r.reminders) state.reminders = r.reminders;
+        saveJson(STORAGE_KEYS.PROFILE, state.profile);
+        saveJson(STORAGE_KEYS.CLUB, state.club);
+        saveJson(STORAGE_KEYS.REMINDERS, state.reminders);
+        state.onbMode = 'register';
+        render();
+        loadHomework();
+        loadNotifs();
+        showToast('Akkauntga muvaffaqiyatli kirdingiz.');
+      } catch (err) {
+        showToast(err.message || 'Kirib bo‘lmadi.', 'warning');
+      }
+    };
+
     function renderOnboarding() {
       const interests = ['Speaking', 'Reading', 'Writing', 'Listening', 'Talaffuz', 'Lug‘at', 'Tajriba yo‘q'];
       return `
@@ -1149,6 +1192,24 @@
                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-sm"
                 />
                 <p class="text-[10px] text-slate-400 mt-1">3–20 ta: lotin harflari, raqam va _ belgisi. Keyin o‘zgartirib bo‘lmaydi.</p>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Parol * <span class="font-normal text-slate-400">(nickname’ingizni himoyalaydi)</span></label>
+                <input id="onb-pass" type="password" required minlength="8" maxlength="100" autocomplete="new-password" placeholder="Kamida 8 ta belgi" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-sm mb-2" />
+                <input id="onb-pass2" type="password" required minlength="8" maxlength="100" autocomplete="new-password" placeholder="Parolni takrorlang" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-sm" />
+                <p class="text-[10px] text-slate-400 mt-1">Parolni eslab qoling: boshqa Telegram akkauntdan kirish uchun kerak bo‘ladi.</p>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Gmail (email) *</label>
+                <input id="onb-email" type="email" required maxlength="254" autocomplete="email" placeholder="ismingiz@gmail.com" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-sm" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Telefon raqam *</label>
+                <input id="onb-phone" type="tel" required maxlength="20" autocomplete="tel" placeholder="+998 90 123 45 67" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-sm" />
+                <p class="text-[10px] text-slate-400 mt-1">Email va telefon boshqalarga ko‘rsatilmaydi. Faqat sizga muhim xabar yuborish uchun.</p>
               </div>
 
               <div class="grid grid-cols-2 gap-3">
@@ -1249,6 +1310,7 @@
               >
                 Klubga qo‘shilish (+50 XP) →
               </button>
+              <button type="button" onclick="setOnbMode('login')" class="w-full py-2 text-xs font-bold text-indigo-600">Akkauntim bor — kirish</button>
             </form>
           </div>
         </div>
@@ -2606,6 +2668,14 @@
           showToast('Nickname 3–20 ta lotin harfi, raqam yoki _ bo‘lishi kerak.', 'warning');
           return;
         }
+        const password = document.getElementById('onb-pass').value;
+        const password2 = document.getElementById('onb-pass2').value;
+        const email = document.getElementById('onb-email').value.trim().toLowerCase();
+        const phone = document.getElementById('onb-phone').value.trim();
+        if (password.length < 8) { showToast('Parol kamida 8 ta belgidan iborat bo‘lsin.', 'warning'); return; }
+        if (password !== password2) { showToast('Ikkala parol bir xil emas.', 'warning'); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { showToast('Gmail (email) manzili noto‘g‘ri.', 'warning'); return; }
+        if (!/^\+?[\d\s\-()]{9,18}$/.test(phone)) { showToast('Telefon raqami noto‘g‘ri.', 'warning'); return; }
         const group = document.getElementById('onb-group').value;
         const level = document.getElementById('onb-level').value;
         const interests = Array.from(document.querySelectorAll('.onb-interest-btn.active-interest')).map((el) => el.getAttribute('data-interest'));
@@ -2658,7 +2728,7 @@
         };
         if (window.EPApi && window.EPApi.ready) {
           try {
-            await window.EPApi.register(newProfile);
+            await window.EPApi.register({ ...newProfile, password, email, phone });
           } catch (err) {
             showToast(err.message || 'Ro‘yxatdan o‘tib bo‘lmadi.', 'warning');
             return;

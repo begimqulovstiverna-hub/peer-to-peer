@@ -80,6 +80,30 @@ const AWARD_BADGES = {
   speaker: { title: 'So‘zlovchi', xp: 800 },
   listener: { title: 'Tinglovchi', xp: 500 },
 };
+const PBKDF2_ITER = 100000;
+const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+async function pbkdf2(password, salt) {
+  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  return crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: PBKDF2_ITER }, key, 256);
+}
+async function hashPassword(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  return `pbkdf2$${PBKDF2_ITER}$${b64(salt)}$${b64(await pbkdf2(password, salt))}`;
+}
+async function verifyPassword(password, stored) {
+  const parts = String(stored || '').split('$');
+  if (parts.length !== 4 || parts[0] !== 'pbkdf2') return false;
+  return safeEqual(b64(await pbkdf2(password, unb64(parts[2]))), parts[3]);
+}
+const normEmail = (s) => String(s || '').trim().toLowerCase();
+const normPhone = (s) => {
+  let d = String(s || '').replace(/[\s\-()]/g, '');
+  if (/^\d{9}$/.test(d)) d = '+998' + d; // O‘zbekiston raqami kodsiz yozilsa
+  if (/^998\d{9}$/.test(d)) d = '+' + d;
+  return d;
+};
 const MAX_FILE_CHARS = 1_000_000; // base64 matn uzunligi (~700 KB fayl)
 
 async function sendTelegram(env, chatId, text, origin) {
@@ -174,11 +198,27 @@ export default {
           return json({ error: 'Nickname 3–20 ta lotin harfi, raqam yoki _ bo‘lishi kerak' }, 400);
         }
         p.nickname = nick;
+
+        // Parol, email, telefon: alohida ustunlarda saqlanadi, profilga (va brauzerga) tushmaydi
+        const password = String(p.password || '');
+        const email = normEmail(p.email);
+        const phone = normPhone(p.phone);
+        delete p.password; delete p.email; delete p.phone;
+        if (password.length < 8 || password.length > 100) return json({ error: 'Parol kamida 8 ta belgidan iborat bo‘lsin' }, 400);
+        if (password.toLowerCase() === nick) return json({ error: 'Parol nickname bilan bir xil bo‘lmasin' }, 400);
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 254) return json({ error: 'Gmail (email) manzili noto‘g‘ri' }, 400);
+        if (!/^\+\d{9,15}$/.test(phone)) return json({ error: 'Telefon raqami noto‘g‘ri (masalan: +998901234567)' }, 400);
+        const pwHash = await hashPassword(password);
         try {
-          await env.DB.prepare('UPDATE users SET profile_json = ?, nickname = ? WHERE telegram_id = ?')
-            .bind(JSON.stringify(p), nick, tgId).run();
+          await env.DB.prepare('UPDATE users SET profile_json = ?, nickname = ?, password_hash = ?, email = ?, phone = ?, failed_logins = 0, locked_until = NULL WHERE telegram_id = ?')
+            .bind(JSON.stringify(p), nick, pwHash, email, phone, tgId).run();
         } catch (e) {
-          if (/UNIQUE/i.test(String(e && e.message))) return json({ error: 'Bu nickname band, boshqasini tanlang' }, 409);
+          const m = String(e && e.message);
+          if (/UNIQUE/i.test(m)) {
+            if (/email/i.test(m)) return json({ error: 'Bu email allaqachon ro‘yxatdan o‘tgan' }, 409);
+            if (/phone/i.test(m)) return json({ error: 'Bu telefon raqami allaqachon ro‘yxatdan o‘tgan' }, 409);
+            return json({ error: 'Bu nickname band, boshqasini tanlang' }, 409);
+          }
           throw e;
         }
         return json({ ok: true, profile: p });
@@ -199,6 +239,43 @@ export default {
           env.DB.prepare('INSERT INTO audit(telegram_id, action) VALUES(?, ?)').bind(tgId, `Moderator role: ${role}`),
         ]);
         return json({ valid: true, role, expiresAt: expires });
+      }
+
+      // ---- Mavjud akkauntga kirish (yangi Telegram akkauntdan): nickname + parol ----
+      if (path === '/api/login' && request.method === 'POST') {
+        const b = await readBody(request);
+        const nick = String(b.nickname || '').replace(/^@/, '').toLowerCase();
+        const password = String(b.password || '');
+        const BAD = 'Nickname yoki parol noto‘g‘ri';
+        const me = await env.DB.prepare('SELECT telegram_id, nickname, profile_json FROM users WHERE telegram_id = ?').bind(tgId).first();
+        if (me && me.nickname) return json({ error: 'Bu Telegram akkauntda allaqachon profil bor' }, 409);
+        const acc = await env.DB.prepare('SELECT telegram_id, password_hash, failed_logins, locked_until, profile_json, state_json, role, mod_expires FROM users WHERE nickname = ?').bind(nick).first();
+        if (!acc || !acc.password_hash) return json({ error: BAD }, 403);
+        if (acc.locked_until && Number(acc.locked_until) > Date.now()) return json({ error: 'Juda ko‘p urinish. 15 daqiqadan keyin qayta urinib ko‘ring' }, 429);
+        if (!(await verifyPassword(password, acc.password_hash))) {
+          const fails = (acc.failed_logins || 0) + 1;
+          await env.DB.prepare('UPDATE users SET failed_logins = ?, locked_until = ? WHERE telegram_id = ?')
+            .bind(fails >= 5 ? 0 : fails, fails >= 5 ? Date.now() + 15 * 60000 : null, acc.telegram_id).run();
+          return json({ error: BAD }, 403);
+        }
+        if (acc.telegram_id !== tgId) {
+          // Akkaunt ma’lumotlari yangi Telegram akkauntga ko‘chiriladi
+          const uname = me ? me.username : '';
+          const old = acc.telegram_id;
+          await env.DB.batch([
+            env.DB.prepare('DELETE FROM users WHERE telegram_id = ?').bind(tgId),
+            env.DB.prepare('UPDATE users SET telegram_id = ?, failed_logins = 0, locked_until = NULL WHERE telegram_id = ?').bind(tgId, old),
+            env.DB.prepare('UPDATE homework SET user_id = ? WHERE user_id = ?').bind(tgId, old),
+            env.DB.prepare('UPDATE homework SET mentor_id = ? WHERE mentor_id = ?').bind(tgId, old),
+            env.DB.prepare('UPDATE notifications SET user_id = ? WHERE user_id = ?').bind(tgId, old),
+            env.DB.prepare('UPDATE notifications SET from_id = ? WHERE from_id = ?').bind(tgId, old),
+          ]);
+        } else {
+          await env.DB.prepare('UPDATE users SET failed_logins = 0, locked_until = NULL WHERE telegram_id = ?').bind(tgId).run();
+        }
+        const row = await env.DB.prepare('SELECT profile_json, state_json, role, mod_expires FROM users WHERE telegram_id = ?').bind(tgId).first();
+        const state = parse(row.state_json) || {};
+        return json({ ok: true, ...state, profile: parse(row.profile_json), role: row.role, modExpires: row.mod_expires });
       }
 
       // ---- Tengdoshga fikr: nickname egasiga bildirishnoma ----

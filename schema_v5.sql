@@ -1,0 +1,7 @@
+ALTER TABLE users ADD COLUMN password_hash TEXT;
+ALTER TABLE users ADD COLUMN email TEXT;
+ALTER TABLE users ADD COLUMN phone TEXT;
+ALTER TABLE users ADD COLUMN failed_logins INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN locked_until INTEGER;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone ON users(phone);

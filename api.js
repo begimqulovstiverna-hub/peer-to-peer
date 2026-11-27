@@ -43,6 +43,10 @@
     async homeworkSubmit(body){ return request('/api/homework', {method:'POST', body:JSON.stringify(body)}); },
     async homeworkReview(body){ return request('/api/homework/review', {method:'POST', body:JSON.stringify(body)}); },
     async homeworkFeedback(body){ return request('/api/homework/feedback', {method:'POST', body:JSON.stringify(body)}); },
+    async login(nickname, password){
+      if (!token) throw new Error('Telegram Mini App orqali kiring.');
+      return request('/api/login', {method:'POST', body:JSON.stringify({nickname, password})});
+    },
     async sendReview(review){
       return request('/api/reviews', {method:'POST', body:JSON.stringify(review)});
     },
