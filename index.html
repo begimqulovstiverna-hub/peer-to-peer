@@ -670,6 +670,12 @@
       { id: 'speaker', title: 'Spiker / Moderator', desc: 'Dars mavzusini o‘tishga yozildi', icon: '🎙️', minXp: 160 }
     ];
 
+    const AWARD_BADGES = {
+      writer: { title: 'Mohir yozuvchi', icon: '✍️', xp: 300 },
+      speaker: { title: 'So‘zlovchi', icon: '🎙️', xp: 800 },
+      listener: { title: 'Tinglovchi', icon: '👂', xp: 500 }
+    };
+
     // =========================================================================
     // 4. STATE BOSHQARUVI
     // =========================================================================
@@ -817,6 +823,9 @@
         let body = '';
         if (reviewed) {
           body += `<div class="bg-emerald-50 p-2.5 rounded-xl text-xs text-emerald-900"><strong>Moderator izohi${sub.mentorName ? ' (' + escapeHtml(sub.mentorName) + ')' : ''}:</strong> ${escapeHtml(sub.mentorComment)}</div>`;
+          if (sub.badge && AWARD_BADGES[sub.badge]) {
+            body += `<div class="bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-xs font-bold text-amber-900">🏅 Nishon: ${AWARD_BADGES[sub.badge].icon} ${AWARD_BADGES[sub.badge].title} (+${sub.badgeXp} XP)</div>`;
+          }
           if (sub.userFeedback) {
             body += `<div class="bg-indigo-50 p-2.5 rounded-xl text-xs text-indigo-900"><strong>Javob (feedback):</strong> ${escapeHtml(sub.userFeedback)}</div>`;
           } else if (sub.mine) {
@@ -828,6 +837,12 @@
         } else if (mod && !sub.mine) {
           body += `<div class="space-y-2">
             <textarea id="rev-input-${escapeHtml(String(sub.id))}" rows="2" placeholder="Yaxshi tomonlari, xatolari va maslahatlar..." class="w-full p-2.5 rounded-xl border text-xs"></textarea>
+            <select id="rev-badge-${escapeHtml(String(sub.id))}" class="w-full px-3 py-2 rounded-xl border text-xs bg-white">
+              <option value="">Nishon berilmasin</option>
+              <option value="writer">✍️ Mohir yozuvchi (+300 XP)</option>
+              <option value="speaker">🎙️ So‘zlovchi (+800 XP)</option>
+              <option value="listener">👂 Tinglovchi (+500 XP)</option>
+            </select>
             <button onclick="reviewHomeworkItem('${escapeHtml(String(sub.id))}')" class="w-full px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Tekshirib baholash</button>
           </div>`;
         }
@@ -836,7 +851,8 @@
             <span class="font-bold text-xs">${escapeHtml(sub.userName)}</span>${badge}
           </div>
           <div class="text-[11px] font-semibold text-indigo-600">${escapeHtml(sub.lessonTitle)}</div>
-          <p class="text-xs bg-slate-50 p-3 rounded-2xl whitespace-pre-line">${escapeHtml(sub.answerText)}</p>
+          ${sub.answerText ? `<p class="text-xs bg-slate-50 p-3 rounded-2xl whitespace-pre-line">${escapeHtml(sub.answerText)}</p>` : ''}
+          ${sub.hasFile ? `<button onclick="viewHomeworkFile('${escapeHtml(String(sub.id))}')" class="w-full text-left px-3 py-2 rounded-xl bg-slate-100 text-xs font-bold text-slate-700">${sub.fileKind === 'image' ? '🖼️' : sub.fileKind === 'audio' ? '🎧' : '📄'} ${escapeHtml(sub.fileName || 'Faylni ko‘rish')} — ochish</button>` : ''}
           ${body}
         </div>`;
       }).join('');
@@ -847,6 +863,24 @@
       try {
         const r = await window.EPApi.homeworkList();
         state.hwList = r.items || [];
+        // Moderator bergan nishon va XP o‘quvchiga bir marta qo‘shiladi
+        const p = state.profile;
+        if (p) {
+          p.appliedAwards = p.appliedAwards || [];
+          p.awardedBadges = p.awardedBadges || [];
+          let changed = false;
+          for (const s of state.hwList) {
+            const key = 'hw-' + s.id;
+            if (s.mine && s.badge && AWARD_BADGES[s.badge] && !p.appliedAwards.includes(key)) {
+              p.appliedAwards.push(key);
+              if (!p.awardedBadges.includes(s.badge)) p.awardedBadges.push(s.badge);
+              addXp(s.badgeXp || AWARD_BADGES[s.badge].xp, 'Nishon: ' + AWARD_BADGES[s.badge].title);
+              showToast(`🏅 Yangi nishon: ${AWARD_BADGES[s.badge].title}`);
+              changed = true;
+            }
+          }
+          if (changed) persistAll();
+        }
         render();
       } catch {}
     }
@@ -2151,7 +2185,12 @@
                     <select id="hw-lesson" class="w-full px-3 py-2.5 rounded-xl border text-xs bg-white">
                       ${state.club.schedules.map((s) => `<option value="${escapeHtml(s.topic)}">${escapeHtml(s.topic)}</option>`).join('')}
                     </select>
-                    <textarea id="hw-text" required rows="3" placeholder="Dars mavzusi bo‘yicha misol gaplaringizni yozing..." class="w-full p-3 rounded-2xl border text-xs"></textarea>
+                    <textarea id="hw-text" rows="3" placeholder="Dars mavzusi bo‘yicha misol gaplaringizni yozing..." class="w-full p-3 rounded-2xl border text-xs"></textarea>
+                    <div>
+                      <label class="block text-[11px] font-bold text-slate-700 mb-1">📎 Fayl biriktirish (ixtiyoriy)</label>
+                      <input id="hw-file" type="file" accept="image/*,audio/*,.pdf,.doc,.docx,.txt" class="w-full text-[11px] file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 file:font-bold" />
+                      <p class="text-[10px] text-slate-400 mt-1">Rasm (avtomatik kichraytiriladi), qisqa audio yoki hujjat: 700 KB gacha. Video yuklab bo‘lmaydi.</p>
+                    </div>
                     <button type="submit" class="w-full py-3 rounded-2xl bg-indigo-600 text-white font-bold text-xs">Vazifani yuborish</button>
                   </form>
 
@@ -2430,10 +2469,11 @@
                 <div class="text-[10px] font-bold text-rose-800">Seriya</div>
               </div>
               <div class="bg-emerald-50 p-3 rounded-2xl text-center border border-emerald-100">
-                <div class="text-lg font-extrabold text-emerald-600">${ALL_BADGES.filter((b) => xp >= b.minXp).length}/${ALL_BADGES.length}</div>
+                <div class="text-lg font-extrabold text-emerald-600">${ALL_BADGES.filter((b) => xp >= b.minXp).length + (p.awardedBadges || []).length}/${ALL_BADGES.length + Object.keys(AWARD_BADGES).length}</div>
                 <div class="text-[10px] font-bold text-emerald-800">Nishon</div>
               </div>
             </div>
+            ${(p.awardedBadges || []).length ? `<div class="flex flex-wrap gap-1.5 pt-1">${(p.awardedBadges || []).filter((k) => AWARD_BADGES[k]).map((k) => `<span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">${AWARD_BADGES[k].icon} ${AWARD_BADGES[k].title}</span>`).join('')}</div>` : ''}
           </div>
 
           ${securityCardHtml}
@@ -2892,10 +2932,17 @@
       e.preventDefault();
       const lessonTitle = document.getElementById('hw-lesson').value;
       const answerText = document.getElementById('hw-text').value.trim();
-      if (!answerText) return;
+      const fileEl = document.getElementById('hw-file');
+      const rawFile = fileEl && fileEl.files && fileEl.files[0];
+      if (!answerText && !rawFile) { showToast('Matn yozing yoki fayl biriktiring.', 'warning'); return; }
+      let file = null;
+      if (rawFile) {
+        if (!(window.EPApi && window.EPApi.ready)) { showToast('Fayl yuklash faqat Telegram Mini App ichida ishlaydi.', 'warning'); return; }
+        try { file = await prepareHomeworkFile(rawFile); } catch (err) { showToast(err.message || 'Faylni tayyorlab bo‘lmadi.', 'warning'); return; }
+      }
       if (window.EPApi && window.EPApi.ready) {
         try {
-          await window.EPApi.homeworkSubmit({ lessonTitle, answerText });
+          await window.EPApi.homeworkSubmit({ lessonTitle, answerText, file });
         } catch (err) {
           showToast(err.message || 'Vazifani yuborib bo‘lmadi.', 'warning');
           return;
@@ -2908,6 +2955,64 @@
       showToast('Vazifa moderatorga yuborildi! (+25 XP)');
       render();
     };
+    function readAsDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = () => reject(new Error('Faylni o‘qib bo‘lmadi'));
+        r.readAsDataURL(blob);
+      });
+    }
+
+    async function prepareHomeworkFile(f) {
+      const LIMIT = 950000; // base64 matn uzunligi
+      if (f.type.startsWith('video/')) throw new Error('Video yuklab bo‘lmaydi. Rasm, audio yoki hujjat tanlang.');
+      let data;
+      if (f.type.startsWith('image/')) {
+        const src = await readAsDataUrl(f);
+        const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Rasmni ochib bo‘lmadi')); i.src = src; });
+        const scale = Math.min(1, 1280 / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        data = c.toDataURL('image/jpeg', 0.72);
+        return { name: f.name.replace(/\.\w+$/, '') + '.jpg', mime: 'image/jpeg', data: data.length <= LIMIT ? data : c.toDataURL('image/jpeg', 0.5) };
+      }
+      data = await readAsDataUrl(f);
+      if (data.length > LIMIT) throw new Error('Fayl juda katta (700 KB gacha). Qisqaroq audio yoki kichikroq fayl tanlang.');
+      return { name: f.name, mime: f.type || 'application/octet-stream', data };
+    }
+
+    window.viewHomeworkFile = async (id) => {
+      try {
+        const f = await window.EPApi.homeworkFile(id);
+        const ov = document.createElement('div');
+        ov.className = 'fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4';
+        ov.onclick = () => ov.remove();
+        const box = document.createElement('div');
+        box.className = 'bg-white rounded-3xl p-4 w-full max-w-md max-h-[85vh] overflow-auto space-y-3';
+        box.onclick = (e) => e.stopPropagation();
+        const title = document.createElement('div');
+        title.className = 'text-xs font-bold text-slate-700 break-words';
+        title.textContent = f.name;
+        box.appendChild(title);
+        if (f.mime.startsWith('image/')) { const im = document.createElement('img'); im.src = f.data; im.className = 'w-full rounded-2xl'; box.appendChild(im); }
+        else if (f.mime.startsWith('audio/')) { const au = document.createElement('audio'); au.src = f.data; au.controls = true; au.className = 'w-full'; box.appendChild(au); }
+        const dl = document.createElement('a');
+        dl.href = f.data; dl.download = f.name; dl.textContent = '⬇️ Yuklab olish';
+        dl.className = 'block text-center text-xs font-bold text-indigo-600 py-2';
+        box.appendChild(dl);
+        const cl = document.createElement('button');
+        cl.textContent = 'Yopish'; cl.className = 'w-full py-2.5 rounded-2xl bg-slate-100 text-xs font-bold';
+        cl.onclick = () => ov.remove();
+        box.appendChild(cl);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+      } catch (err) {
+        showToast(err.message || 'Faylni ochib bo‘lmadi.', 'warning');
+      }
+    };
+
     window.reviewHomeworkItem = async (subId) => {
       if (!hasModeratorPowers()) { showToast('Vazifani faqat moderator tekshiradi.', 'warning'); return; }
       const inp = document.getElementById('rev-input-' + subId);
@@ -2915,7 +3020,8 @@
       const comment = inp.value.trim();
       if (window.EPApi && window.EPApi.ready) {
         try {
-          await window.EPApi.homeworkReview({ id: subId, comment });
+          const badgeEl = document.getElementById('rev-badge-' + subId);
+          await window.EPApi.homeworkReview({ id: subId, comment, badge: badgeEl ? badgeEl.value : '' });
         } catch (err) {
           showToast(err.message || 'Saqlab bo‘lmadi.', 'warning');
           return;

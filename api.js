@@ -38,6 +38,7 @@
       if (!token) return null;
       return request('/api/profile', {method:'PUT', body:JSON.stringify(profile)});
     },
+    async homeworkFile(id){ return request('/api/homework/file?id=' + encodeURIComponent(id)); },
     async homeworkList(){ return request('/api/homework'); },
     async homeworkSubmit(body){ return request('/api/homework', {method:'POST', body:JSON.stringify(body)}); },
     async homeworkReview(body){ return request('/api/homework/review', {method:'POST', body:JSON.stringify(body)}); },

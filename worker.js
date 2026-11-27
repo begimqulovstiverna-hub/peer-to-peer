@@ -74,6 +74,14 @@ async function readBody(req) {
 
 const parse = (s) => (s ? JSON.parse(s) : null);
 
+// Moderator beradigan nishonlar (peers.txt)
+const AWARD_BADGES = {
+  writer: { title: 'Mohir yozuvchi', xp: 300 },
+  speaker: { title: 'So‘zlovchi', xp: 800 },
+  listener: { title: 'Tinglovchi', xp: 500 },
+};
+const MAX_FILE_CHARS = 1_000_000; // base64 matn uzunligi (~700 KB fayl)
+
 async function sendTelegram(env, chatId, text, origin) {
   try {
     const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
@@ -265,6 +273,8 @@ export default {
               id: String(r.id), userName: r.user_name, lessonTitle: r.lesson_title, answerText: r.answer_text,
               status: r.status, mentorComment: r.mentor_comment || '', mentorName: r.mentor_name || '',
               userFeedback: r.user_feedback || '', mine: r.user_id === tgId,
+              hasFile: !!r.file_kind, fileKind: r.file_kind || '', fileName: r.file_name || '',
+              badge: r.badge || '', badgeXp: r.badge_xp || 0,
             })),
           });
         }
@@ -273,9 +283,24 @@ export default {
           const b = await readBody(request);
           const lessonTitle = String(b.lessonTitle || '').slice(0, 200);
           const answerText = String(b.answerText || '').trim().slice(0, 3000);
-          if (!answerText) return json({ error: 'Vazifa matnini yozing' }, 400);
-          const res = await env.DB.prepare('INSERT INTO homework(user_id, user_name, lesson_title, answer_text) VALUES(?, ?, ?, ?)')
-            .bind(tgId, myName, lessonTitle, answerText).run();
+          const f = b.file && typeof b.file === 'object' ? b.file : null;
+          let fileKind = null, fileName = null, fileMime = null, fileData = null;
+          if (f) {
+            fileMime = String(f.mime || '');
+            fileData = String(f.data || '');
+            fileName = String(f.name || 'fayl').slice(0, 120);
+            if (!/^data:[\w.+\/-]+;base64,/.test(fileData)) return json({ error: 'Fayl formati noto‘g‘ri' }, 400);
+            if (fileData.length > MAX_FILE_CHARS) return json({ error: 'Fayl juda katta (700 KB gacha)' }, 413);
+            if (fileMime.startsWith('video/')) return json({ error: 'Video yuklab bo‘lmaydi' }, 400);
+            fileKind = fileMime.startsWith('image/') ? 'image' : fileMime.startsWith('audio/') ? 'audio' : 'file';
+          }
+          if (!answerText && !f) return json({ error: 'Vazifa matnini yozing yoki fayl biriktiring' }, 400);
+          const res = await env.DB.prepare('INSERT INTO homework(user_id, user_name, lesson_title, answer_text, file_kind, file_name) VALUES(?, ?, ?, ?, ?, ?)')
+            .bind(tgId, myName, lessonTitle, answerText, fileKind, fileName).run();
+          if (f) {
+            await env.DB.prepare('INSERT INTO homework_files(homework_id, mime, data) VALUES(?, ?, ?)')
+              .bind(res.meta.last_row_id, fileMime, fileData).run();
+          }
           // Moderatorlarga bildirishnoma
           const { results: mods } = await env.DB.prepare(
             "SELECT telegram_id FROM users WHERE role = 'super_admin' OR (role = 'temp_moderator' AND mod_expires > ?) LIMIT 20"
@@ -284,6 +309,15 @@ export default {
             if (m.telegram_id !== tgId) await notify(env, m.telegram_id, tgId, 'homework', `📝 ${myName} uy vazifasi topshirdi: ${lessonTitle}. Tekshirish kerak.`, url.origin);
           }
           return json({ ok: true, id: String(res.meta.last_row_id) });
+        }
+
+        if (path === '/api/homework/file' && request.method === 'GET') {
+          const id = Number(url.searchParams.get('id'));
+          const row = await env.DB.prepare('SELECT user_id, file_name FROM homework WHERE id = ?').bind(id).first();
+          if (!row || (row.user_id !== tgId && !mod)) return json({ error: 'Fayl topilmadi' }, 404);
+          const file = await env.DB.prepare('SELECT mime, data FROM homework_files WHERE homework_id = ?').bind(id).first();
+          if (!file) return json({ error: 'Fayl topilmadi' }, 404);
+          return json({ name: row.file_name || 'fayl', mime: file.mime, data: file.data });
         }
 
         if (path === '/api/homework/review' && request.method === 'POST') {
@@ -295,9 +329,11 @@ export default {
           if (!row) return json({ error: 'Vazifa topilmadi' }, 404);
           if (row.user_id === tgId) return json({ error: 'O‘z vazifangizni o‘zingiz tekshira olmaysiz' }, 403);
           if (row.status === 'Reviewed') return json({ error: 'Bu vazifa allaqachon tekshirilgan' }, 409);
-          await env.DB.prepare("UPDATE homework SET status = 'Reviewed', mentor_comment = ?, mentor_name = ?, mentor_id = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?")
-            .bind(comment, myName, tgId, row.id).run();
-          await notify(env, row.user_id, tgId, 'homework_review', `✅ Vazifangiz tekshirildi (${row.lesson_title}). Moderator izohi: ${comment}`, url.origin);
+          const award = AWARD_BADGES[b.badge] || null;
+          await env.DB.prepare("UPDATE homework SET status = 'Reviewed', mentor_comment = ?, mentor_name = ?, mentor_id = ?, badge = ?, badge_xp = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?")
+            .bind(comment, myName, tgId, award ? b.badge : null, award ? award.xp : null, row.id).run();
+          await notify(env, row.user_id, tgId, 'homework_review',
+            `✅ Vazifangiz tekshirildi (${row.lesson_title}). Moderator izohi: ${comment}` + (award ? `\n🏅 Nishon: ${award.title} (+${award.xp} XP)` : ''), url.origin);
           return json({ ok: true });
         }
 
