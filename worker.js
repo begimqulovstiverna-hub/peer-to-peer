@@ -236,9 +236,10 @@ export default {
 
       if (path === '/api/notifications' && request.method === 'GET') {
         const { results } = await env.DB.prepare(
-          'SELECT id, kind, text, created_at FROM notifications WHERE user_id = ? AND read = 0 ORDER BY id DESC LIMIT 20'
+          'SELECT id, kind, text, read, created_at FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 30'
         ).bind(tgId).all();
-        return json({ items: results || [] });
+        const cnt = await env.DB.prepare('SELECT COUNT(*) AS c FROM notifications WHERE user_id = ? AND read = 0').bind(tgId).first();
+        return json({ items: results || [], unread: cnt ? cnt.c : 0 });
       }
 
       if (path === '/api/notifications/read' && request.method === 'POST') {

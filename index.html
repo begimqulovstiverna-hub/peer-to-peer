@@ -711,6 +711,7 @@
       spokenResult: null,
       micError: '',
       lessonsTab: 'homework',
+      notifs: { items: [], unread: 0, open: false },
       clubTab: 'announcements',
       vocabIndex: 0,
       vocabFlipped: false,
@@ -988,8 +989,86 @@
           ${renderActiveTabContent()}
         </main>
         ${renderBottomNav()}
+        ${renderNotifPanel()}
       `;
     }
+
+    // ---------- Bildirishnomalar paneli ----------
+    function notifTimeAgo(s) {
+      const t = new Date(String(s || '').replace(' ', 'T') + 'Z').getTime();
+      if (!t) return '';
+      const m = Math.floor((Date.now() - t) / 60000);
+      if (m < 1) return 'hozirgina';
+      if (m < 60) return m + ' daqiqa oldin';
+      const hr = Math.floor(m / 60);
+      if (hr < 24) return hr + ' soat oldin';
+      return Math.floor(hr / 24) + ' kun oldin';
+    }
+
+    function renderNotifPanel() {
+      if (!state.notifs.open) return '';
+      const icons = { review: '🌟', homework: '📝', homework_review: '✅', homework_feedback: '💬' };
+      const online = window.EPApi && window.EPApi.ready;
+      const items = state.notifs.items || [];
+      let list;
+      if (!online) {
+        list = '<p class="text-xs text-slate-500 text-center py-6">Bildirishnomalar faqat Telegram Mini App ichida ishlaydi.</p>';
+      } else if (!items.length) {
+        list = '<p class="text-xs text-slate-500 text-center py-6">Hozircha bildirishnoma yo‘q.</p>';
+      } else {
+        list = items.map((n) => `
+          <div class="flex gap-2.5 p-3 rounded-2xl border ${n.read ? 'bg-white border-slate-200' : 'bg-indigo-50 border-indigo-200'}">
+            <div class="text-lg leading-none pt-0.5">${icons[n.kind] || '🔔'}</div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs text-slate-800 whitespace-pre-line break-words">${escapeHtml(n.text)}</p>
+              <p class="text-[10px] text-slate-400 mt-1">${notifTimeAgo(n.created_at)}</p>
+            </div>
+          </div>`).join('');
+      }
+      return `
+        <div class="fixed inset-0 z-50 bg-black/40 flex justify-center items-start" onclick="toggleNotifPanel()">
+          <div class="w-full max-w-md bg-slate-50 rounded-b-3xl shadow-2xl max-h-[80vh] overflow-y-auto p-4 space-y-2.5" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between pb-1">
+              <h2 class="font-bold text-sm text-slate-900">🔔 Bildirishnomalar</h2>
+              <button onclick="toggleNotifPanel()" class="text-xs font-bold text-slate-500 px-2 py-1">Yopish ✕</button>
+            </div>
+            ${list}
+          </div>
+        </div>`;
+    }
+
+    function updateNotifBadge() {
+      const el = document.getElementById('notif-badge');
+      if (!el) return;
+      const u = state.notifs.unread;
+      el.textContent = u > 9 ? '9+' : String(u);
+      el.classList.toggle('hidden', !u);
+    }
+
+    async function loadNotifs(quiet) {
+      if (!(window.EPApi && window.EPApi.ready)) return;
+      try {
+        const n = await window.EPApi.getNotifications();
+        const prev = state.notifs.unread;
+        state.notifs.items = n.items || [];
+        state.notifs.unread = n.unread || 0;
+        if (state.notifs.open) render(); else updateNotifBadge();
+        if (quiet && state.notifs.unread > prev) showToast('🔔 Yangi bildirishnoma keldi');
+      } catch {}
+    }
+
+    window.toggleNotifPanel = async () => {
+      state.notifs.open = !state.notifs.open;
+      render();
+      if (state.notifs.open && window.EPApi && window.EPApi.ready) {
+        await loadNotifs();
+        if (state.notifs.unread) {
+          try { await window.EPApi.markNotificationsRead(); } catch {}
+          state.notifs.unread = 0;
+          updateNotifBadge();
+        }
+      }
+    };
 
     function renderOnboarding() {
       const interests = ['Speaking', 'Reading', 'Writing', 'Listening', 'Talaffuz', 'Lug‘at', 'Tajriba yo‘q'];
@@ -1208,6 +1287,10 @@
             </div>
 
             <div class="flex items-center gap-1.5">
+              <button onclick="toggleNotifPanel()" aria-label="Bildirishnomalar" class="relative bg-white/15 border border-white/25 w-9 h-9 rounded-xl flex items-center justify-center text-sm">
+                🔔
+                <span id="notif-badge" class="${state.notifs.unread ? '' : 'hidden'} absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-extrabold flex items-center justify-center border border-white/60">${state.notifs.unread > 9 ? '9+' : state.notifs.unread}</span>
+              </button>
               <div class="bg-amber-500/25 border border-amber-300/40 px-2.5 py-1.5 rounded-xl flex items-center gap-1">
                 <span class="text-xs">🔥</span>
                 <span class="text-xs font-bold text-amber-100">${p.streak || 1}</span>
@@ -2985,13 +3068,9 @@
           }
           if (window.EPApi.ready) {
             loadHomework();
-            try {
-              const n = await window.EPApi.getNotifications();
-              if (n.items && n.items.length) {
-                showToast('🔔 ' + n.items[0].text + (n.items.length > 1 ? ` (+${n.items.length - 1} ta yana)` : ''));
-                window.EPApi.markNotificationsRead().catch(() => {});
-              }
-            } catch {}
+            await loadNotifs();
+            if (state.notifs.unread) showToast(`🔔 ${state.notifs.unread} ta yangi bildirishnoma`);
+            setInterval(() => loadNotifs(true), 60000);
           }
         }
       } catch (err) {
