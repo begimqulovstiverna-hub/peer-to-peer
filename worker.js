@@ -74,6 +74,30 @@ async function readBody(req) {
 
 const parse = (s) => (s ? JSON.parse(s) : null);
 
+async function sendTelegram(env, chatId, text, origin) {
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        reply_markup: { inline_keyboard: [[{ text: 'English Peersni ochish', web_app: { url: origin } }]] },
+      }),
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+const isModRow = (row) => !!row && (row.role === 'super_admin' || (row.role === 'temp_moderator' && Number(row.mod_expires) > Date.now()));
+
+async function notify(env, userId, fromId, kind, text, origin) {
+  await env.DB.prepare('INSERT INTO notifications(user_id, from_id, kind, text) VALUES(?, ?, ?, ?)').bind(userId, fromId, kind, text).run();
+  await sendTelegram(env, userId, text, origin);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -220,6 +244,74 @@ export default {
       if (path === '/api/notifications/read' && request.method === 'POST') {
         await env.DB.prepare('UPDATE notifications SET read = 1 WHERE user_id = ?').bind(tgId).run();
         return json({ ok: true });
+      }
+
+      // ---- Uy vazifasi: o‘quvchi → moderator tekshiradi → o‘quvchi 1 marta javob beradi ----
+      if (path.startsWith('/api/homework')) {
+        const me = await env.DB.prepare('SELECT telegram_id, role, mod_expires, nickname, profile_json FROM users WHERE telegram_id = ?').bind(tgId).first();
+        if (!me) return json({ error: 'Foydalanuvchi topilmadi' }, 404);
+        const myProfile = parse(me.profile_json) || {};
+        const myName = myProfile.fullName || (me.nickname ? '@' + me.nickname : 'Foydalanuvchi');
+        const mod = isModRow(me);
+
+        if (path === '/api/homework' && request.method === 'GET') {
+          const q = mod
+            ? env.DB.prepare('SELECT * FROM homework ORDER BY id DESC LIMIT 100')
+            : env.DB.prepare('SELECT * FROM homework WHERE user_id = ? ORDER BY id DESC LIMIT 50').bind(tgId);
+          const { results } = await q.all();
+          return json({
+            items: (results || []).map((r) => ({
+              id: String(r.id), userName: r.user_name, lessonTitle: r.lesson_title, answerText: r.answer_text,
+              status: r.status, mentorComment: r.mentor_comment || '', mentorName: r.mentor_name || '',
+              userFeedback: r.user_feedback || '', mine: r.user_id === tgId,
+            })),
+          });
+        }
+
+        if (path === '/api/homework' && request.method === 'POST') {
+          const b = await readBody(request);
+          const lessonTitle = String(b.lessonTitle || '').slice(0, 200);
+          const answerText = String(b.answerText || '').trim().slice(0, 3000);
+          if (!answerText) return json({ error: 'Vazifa matnini yozing' }, 400);
+          const res = await env.DB.prepare('INSERT INTO homework(user_id, user_name, lesson_title, answer_text) VALUES(?, ?, ?, ?)')
+            .bind(tgId, myName, lessonTitle, answerText).run();
+          // Moderatorlarga bildirishnoma
+          const { results: mods } = await env.DB.prepare(
+            "SELECT telegram_id FROM users WHERE role = 'super_admin' OR (role = 'temp_moderator' AND mod_expires > ?) LIMIT 20"
+          ).bind(Date.now()).all();
+          for (const m of mods || []) {
+            if (m.telegram_id !== tgId) await notify(env, m.telegram_id, tgId, 'homework', `📝 ${myName} uy vazifasi topshirdi: ${lessonTitle}. Tekshirish kerak.`, url.origin);
+          }
+          return json({ ok: true, id: String(res.meta.last_row_id) });
+        }
+
+        if (path === '/api/homework/review' && request.method === 'POST') {
+          if (!mod) return json({ error: 'Vazifani faqat moderator tekshira oladi' }, 403);
+          const b = await readBody(request);
+          const comment = String(b.comment || '').trim().slice(0, 1500);
+          if (!comment) return json({ error: 'Izoh yozing' }, 400);
+          const row = await env.DB.prepare('SELECT * FROM homework WHERE id = ?').bind(Number(b.id)).first();
+          if (!row) return json({ error: 'Vazifa topilmadi' }, 404);
+          if (row.user_id === tgId) return json({ error: 'O‘z vazifangizni o‘zingiz tekshira olmaysiz' }, 403);
+          if (row.status === 'Reviewed') return json({ error: 'Bu vazifa allaqachon tekshirilgan' }, 409);
+          await env.DB.prepare("UPDATE homework SET status = 'Reviewed', mentor_comment = ?, mentor_name = ?, mentor_id = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?")
+            .bind(comment, myName, tgId, row.id).run();
+          await notify(env, row.user_id, tgId, 'homework_review', `✅ Vazifangiz tekshirildi (${row.lesson_title}). Moderator izohi: ${comment}`, url.origin);
+          return json({ ok: true });
+        }
+
+        if (path === '/api/homework/feedback' && request.method === 'POST') {
+          const b = await readBody(request);
+          const text = String(b.text || '').trim().slice(0, 1000);
+          if (!text) return json({ error: 'Javob matnini yozing' }, 400);
+          const row = await env.DB.prepare('SELECT * FROM homework WHERE id = ?').bind(Number(b.id)).first();
+          if (!row || row.user_id !== tgId) return json({ error: 'Vazifa topilmadi' }, 404);
+          if (row.status !== 'Reviewed') return json({ error: 'Avval moderator tekshirishi kerak' }, 409);
+          if (row.user_feedback) return json({ error: 'Javobni faqat 1 marta yuborish mumkin' }, 409);
+          await env.DB.prepare('UPDATE homework SET user_feedback = ? WHERE id = ?').bind(text, row.id).run();
+          if (row.mentor_id) await notify(env, row.mentor_id, tgId, 'homework_feedback', `💬 ${myName} vazifa izohingizga javob yozdi: ${text}`, url.origin);
+          return json({ ok: true });
+        }
       }
 
       return json({ error: 'Topilmadi' }, 404);

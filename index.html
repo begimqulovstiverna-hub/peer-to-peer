@@ -790,6 +790,66 @@
       return `${pad(mins)}:${pad(secs)}`;
     }
 
+    function homeworkItems() {
+      const me = state.profile ? state.profile.fullName : '';
+      const online = window.EPApi && window.EPApi.ready;
+      const list = online
+        ? (state.hwList || [])
+        : (state.club.submissions || []).map((s) => ({ ...s, mine: s.userName === me }));
+      // Oddiy o‘quvchi faqat o‘z vazifasini ko‘radi; moderator hammasini
+      return hasModeratorPowers() ? list : list.filter((s) => s.mine);
+    }
+
+    function renderHomeworkList() {
+      const items = homeworkItems();
+      const mod = hasModeratorPowers();
+      if (!items.length) {
+        return `<div class="bg-white rounded-3xl p-4 border border-slate-200/80 text-xs text-slate-500 text-center">${
+          mod ? 'Hozircha tekshiriladigan vazifa yo‘q.' : 'Siz hali vazifa topshirmagansiz. Topshirgan vazifangiz moderatorga boradi.'
+        }</div>`;
+      }
+      return items.map((sub) => {
+        const reviewed = sub.status === 'Reviewed';
+        const badge = reviewed
+          ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Tekshirilgan ✅</span>'
+          : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Moderator tekshiruvi kutilmoqda ⏳</span>';
+        let body = '';
+        if (reviewed) {
+          body += `<div class="bg-emerald-50 p-2.5 rounded-xl text-xs text-emerald-900"><strong>Moderator izohi${sub.mentorName ? ' (' + escapeHtml(sub.mentorName) + ')' : ''}:</strong> ${escapeHtml(sub.mentorComment)}</div>`;
+          if (sub.userFeedback) {
+            body += `<div class="bg-indigo-50 p-2.5 rounded-xl text-xs text-indigo-900"><strong>Javob (feedback):</strong> ${escapeHtml(sub.userFeedback)}</div>`;
+          } else if (sub.mine) {
+            body += `<div class="flex gap-2">
+              <input id="fb-input-${escapeHtml(String(sub.id))}" placeholder="Moderatorga javob yozing (faqat 1 marta)..." class="flex-1 px-3 py-2 rounded-xl border text-xs" />
+              <button onclick="sendHomeworkFeedback('${escapeHtml(String(sub.id))}')" class="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">Yuborish</button>
+            </div>`;
+          }
+        } else if (mod && !sub.mine) {
+          body += `<div class="space-y-2">
+            <textarea id="rev-input-${escapeHtml(String(sub.id))}" rows="2" placeholder="Yaxshi tomonlari, xatolari va maslahatlar..." class="w-full p-2.5 rounded-xl border text-xs"></textarea>
+            <button onclick="reviewHomeworkItem('${escapeHtml(String(sub.id))}')" class="w-full px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Tekshirib baholash</button>
+          </div>`;
+        }
+        return `<div class="bg-white rounded-3xl p-4 border border-slate-200/80 space-y-2">
+          <div class="flex justify-between items-center gap-2">
+            <span class="font-bold text-xs">${escapeHtml(sub.userName)}</span>${badge}
+          </div>
+          <div class="text-[11px] font-semibold text-indigo-600">${escapeHtml(sub.lessonTitle)}</div>
+          <p class="text-xs bg-slate-50 p-3 rounded-2xl whitespace-pre-line">${escapeHtml(sub.answerText)}</p>
+          ${body}
+        </div>`;
+      }).join('');
+    }
+
+    async function loadHomework() {
+      if (!(window.EPApi && window.EPApi.ready)) return;
+      try {
+        const r = await window.EPApi.homeworkList();
+        state.hwList = r.items || [];
+        render();
+      } catch {}
+    }
+
     function isSuperAdmin() {
       return state.profile?.activeRole === 'super_admin';
     }
@@ -2012,26 +2072,7 @@
                     <button type="submit" class="w-full py-3 rounded-2xl bg-indigo-600 text-white font-bold text-xs">Vazifani yuborish</button>
                   </form>
 
-                  ${state.club.submissions
-                    .map(
-                      (sub) => `<div class="bg-white rounded-3xl p-4 border border-slate-200/80 space-y-2">
-                        <div class="flex justify-between items-center">
-                          <span class="font-bold text-xs">${escapeHtml(sub.userName)}</span>
-                          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">${sub.status === 'Reviewed' ? 'Tekshirilgan ✅' : 'Kutilmoqda'}</span>
-                        </div>
-                        <div class="text-[11px] font-semibold text-indigo-600">${escapeHtml(sub.lessonTitle)}</div>
-                        <p class="text-xs bg-slate-50 p-3 rounded-2xl whitespace-pre-line">${escapeHtml(sub.answerText)}</p>
-                        ${
-                          sub.mentorComment
-                            ? `<div class="bg-emerald-50 p-2.5 rounded-xl text-xs text-emerald-900"><strong>Izoh:</strong> ${escapeHtml(sub.mentorComment)}</div>`
-                            : `<div class="flex gap-2">
-                                <input id="rev-input-${escapeHtml(sub.id)}" placeholder="Tengdosh sifatida tekshiring (+15 XP)..." class="flex-1 px-3 py-2 rounded-xl border text-xs" />
-                                <button onclick="reviewHomeworkItem('${escapeHtml(sub.id)}')" class="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Baholash</button>
-                              </div>`
-                        }
-                      </div>`
-                    )
-                    .join('')}
+                  ${renderHomeworkList()}
                 </div>`
               : `<div class="space-y-3">
                   <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 text-xs text-indigo-950">
@@ -2763,26 +2804,68 @@
     };
 
     // Vazifa va Jamoa
-    window.setLessonsTab = (t) => { state.lessonsTab = t; render(); };
-    window.submitHomeworkForm = (e) => {
+    window.setLessonsTab = (t) => { state.lessonsTab = t; render(); if (t === 'homework') loadHomework(); };
+    window.submitHomeworkForm = async (e) => {
       e.preventDefault();
       const lessonTitle = document.getElementById('hw-lesson').value;
       const answerText = document.getElementById('hw-text').value.trim();
       if (!answerText) return;
-      state.club.submissions.unshift({ id: 'sub-' + Date.now(), userName: state.profile.fullName, lessonTitle, answerText, status: 'Pending', mentorComment: '' });
+      if (window.EPApi && window.EPApi.ready) {
+        try {
+          await window.EPApi.homeworkSubmit({ lessonTitle, answerText });
+        } catch (err) {
+          showToast(err.message || 'Vazifani yuborib bo‘lmadi.', 'warning');
+          return;
+        }
+        await loadHomework();
+      } else {
+        state.club.submissions.unshift({ id: 'sub-' + Date.now(), userName: state.profile.fullName, lessonTitle, answerText, status: 'Pending', mentorComment: '' });
+      }
       addXp(25, 'Uy vazifasi topshirdi');
-      showToast('Uy vazifasi yuborildi! (+25 XP)');
+      showToast('Vazifa moderatorga yuborildi! (+25 XP)');
       render();
     };
-    window.reviewHomeworkItem = (subId) => {
+    window.reviewHomeworkItem = async (subId) => {
+      if (!hasModeratorPowers()) { showToast('Vazifani faqat moderator tekshiradi.', 'warning'); return; }
       const inp = document.getElementById('rev-input-' + subId);
       if (!inp || !inp.value.trim()) return;
-      const sub = state.club.submissions.find((s) => s.id === subId);
-      if (!sub) return;
-      sub.status = 'Reviewed';
-      sub.mentorComment = `${inp.value.trim()} — (${state.profile.fullName})`;
-      addXp(15, 'Vazifa tekshirdi');
-      showToast('Izoh saqlandi! (+15 XP)');
+      const comment = inp.value.trim();
+      if (window.EPApi && window.EPApi.ready) {
+        try {
+          await window.EPApi.homeworkReview({ id: subId, comment });
+        } catch (err) {
+          showToast(err.message || 'Saqlab bo‘lmadi.', 'warning');
+          return;
+        }
+        await loadHomework();
+      } else {
+        const sub = state.club.submissions.find((s) => s.id === subId);
+        if (!sub || sub.userName === state.profile.fullName) return;
+        sub.status = 'Reviewed';
+        sub.mentorName = state.profile.fullName;
+        sub.mentorComment = comment;
+      }
+      showToast('Baho va izoh saqlandi.');
+      render();
+    };
+    window.sendHomeworkFeedback = async (subId) => {
+      const inp = document.getElementById('fb-input-' + subId);
+      if (!inp || !inp.value.trim()) return;
+      const text = inp.value.trim();
+      if (window.EPApi && window.EPApi.ready) {
+        try {
+          await window.EPApi.homeworkFeedback({ id: subId, text });
+        } catch (err) {
+          showToast(err.message || 'Yuborib bo‘lmadi.', 'warning');
+          return;
+        }
+        await loadHomework();
+      } else {
+        const sub = state.club.submissions.find((s) => s.id === subId);
+        if (!sub || sub.userFeedback) return;
+        sub.userFeedback = text;
+      }
+      showToast('Javobingiz yuborildi.');
       render();
     };
     window.setClubTab = (t) => { state.clubTab = t; render(); };
@@ -2901,6 +2984,7 @@
             saveJson(STORAGE_KEYS.REMINDERS, state.reminders);
           }
           if (window.EPApi.ready) {
+            loadHomework();
             try {
               const n = await window.EPApi.getNotifications();
               if (n.items && n.items.length) {
