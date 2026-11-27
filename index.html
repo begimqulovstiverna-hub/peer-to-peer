@@ -1123,6 +1123,36 @@
 
     window.setOnbMode = (m) => { state.onbMode = m; render(); };
 
+    window.saveContact = async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('ct-email').value.trim();
+      const phone = document.getElementById('ct-phone').value.trim();
+      const cur = document.getElementById('ct-cur').value;
+      try {
+        await window.EPApi.saveContact(email, phone, cur);
+        e.target.reset();
+        showToast('Aloqa ma’lumotlari saqlandi.');
+      } catch (err) {
+        showToast(err.message || 'Saqlab bo‘lmadi.', 'warning');
+      }
+    };
+
+    window.changePassword = async (e) => {
+      e.preventDefault();
+      const cur = document.getElementById('pw-cur').value;
+      const n1 = document.getElementById('pw-new').value;
+      const n2 = document.getElementById('pw-new2').value;
+      if (n1.length < 8) { showToast('Yangi parol kamida 8 ta belgidan iborat bo‘lsin.', 'warning'); return; }
+      if (n1 !== n2) { showToast('Yangi parollar bir xil emas.', 'warning'); return; }
+      try {
+        await window.EPApi.changePassword(cur, n1);
+        e.target.reset();
+        showToast('Parol muvaffaqiyatli o‘zgartirildi.');
+      } catch (err) {
+        showToast(err.message || 'Parolni o‘zgartirib bo‘lmadi.', 'warning');
+      }
+    };
+
     window.submitLogin = async (e) => {
       e.preventDefault();
       if (!(window.EPApi && window.EPApi.ready)) { showToast('Kirish faqat Telegram Mini App ichida ishlaydi.', 'warning'); return; }
@@ -2537,6 +2567,24 @@
             </div>
             ${(p.awardedBadges || []).length ? `<div class="flex flex-wrap gap-1.5 pt-1">${(p.awardedBadges || []).filter((k) => AWARD_BADGES[k]).map((k) => `<span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">${AWARD_BADGES[k].icon} ${AWARD_BADGES[k].title}</span>`).join('')}</div>` : ''}
           </div>
+
+          ${window.EPApi && window.EPApi.ready ? `
+          <form onsubmit="changePassword(event)" class="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
+            <h3 class="font-extrabold text-sm text-slate-900">🔒 Parolni o‘zgartirish</h3>
+            <input id="pw-cur" type="password" autocomplete="current-password" placeholder="Joriy parol" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-indigo-500" />
+            <p class="text-[10px] text-slate-400 -mt-1">Parol hali o‘rnatilmagan bo‘lsa, bu maydonni bo‘sh qoldiring.</p>
+            <input id="pw-new" type="password" required minlength="8" maxlength="100" autocomplete="new-password" placeholder="Yangi parol (kamida 8 ta belgi)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-indigo-500" />
+            <input id="pw-new2" type="password" required minlength="8" maxlength="100" autocomplete="new-password" placeholder="Yangi parolni takrorlang" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-indigo-500" />
+            <button type="submit" class="w-full py-2.5 rounded-2xl bg-slate-900 text-white font-bold text-xs">Parolni saqlash</button>
+          </form>
+          <form onsubmit="saveContact(event)" class="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
+            <h3 class="font-extrabold text-sm text-slate-900">📧 Gmail va telefon</h3>
+            <input id="ct-email" type="email" required maxlength="254" autocomplete="email" placeholder="ismingiz@gmail.com" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-indigo-500" />
+            <input id="ct-phone" type="tel" required maxlength="20" autocomplete="tel" placeholder="+998 90 123 45 67" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-indigo-500" />
+            <input id="ct-cur" type="password" autocomplete="current-password" placeholder="Joriy parol (almashtirayotgan bo‘lsangiz)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-indigo-500" />
+            <p class="text-[10px] text-slate-400 -mt-1">Birinchi marta kiritayotgan bo‘lsangiz, parol maydoni bo‘sh qoladi. Ma’lumotlar boshqalarga ko‘rinmaydi.</p>
+            <button type="submit" class="w-full py-2.5 rounded-2xl bg-slate-900 text-white font-bold text-xs">Saqlash</button>
+          </form>` : ''}
 
           ${securityCardHtml}
 

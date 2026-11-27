@@ -47,6 +47,14 @@
       if (!token) throw new Error('Telegram Mini App orqali kiring.');
       return request('/api/login', {method:'POST', body:JSON.stringify({nickname, password})});
     },
+    async saveContact(email, phone, current){
+      if (!token) throw new Error('Telegram Mini App orqali kiring.');
+      return request('/api/contact', {method:'POST', body:JSON.stringify({email, phone, current})});
+    },
+    async changePassword(current, next){
+      if (!token) throw new Error('Telegram Mini App orqali kiring.');
+      return request('/api/password/change', {method:'POST', body:JSON.stringify({current, next})});
+    },
     async sendReview(review){
       return request('/api/reviews', {method:'POST', body:JSON.stringify(review)});
     },
